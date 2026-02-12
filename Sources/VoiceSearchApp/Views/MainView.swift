@@ -32,7 +32,7 @@ struct MainView: View {
                         }
                         .foregroundStyle(.secondary)
                     )
-                    .onDrop(of: [UTType.fileURL.identifier, UTType.movie.identifier, UTType.audio.identifier], isTargeted: $viewModel.isDropTargeted) { providers in
+                    .onDrop(of: [UTType.fileURL, UTType.movie, UTType.audio], isTargeted: $viewModel.isDropTargeted) { providers in
                         Task {
                             _ = await viewModel.handleDrop(providers: providers)
                         }
@@ -81,6 +81,12 @@ struct MainView: View {
                         viewModel.performSearch()
                     }
 
+                Toggle("部分一致", isOn: $viewModel.isContainsMatchMode)
+                    .toggleStyle(.switch)
+                    .onChange(of: viewModel.isContainsMatchMode) { _ in
+                        viewModel.performSearch()
+                    }
+
                 Button("検索") {
                     viewModel.performSearch()
                 }
@@ -110,16 +116,23 @@ struct MainView: View {
             Divider()
 
             List(Array(viewModel.transcript.enumerated()), id: \.element.id) { index, word in
-                HStack {
-                    Text(formatTime(word.startTime))
-                        .font(.system(.caption, design: .monospaced))
-                        .frame(width: 70, alignment: .leading)
-                    Text(word.text)
-                    Spacer()
+                Button {
+                    viewModel.jump(toWordAt: index)
+                } label: {
+                    HStack {
+                        Text(formatTime(word.startTime))
+                            .font(.system(.caption, design: .monospaced))
+                            .frame(width: 70, alignment: .leading)
+                        Text(word.text)
+                            .foregroundStyle(.primary)
+                        Spacer()
+                    }
+                    .padding(.vertical, 2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(index == viewModel.highlightedIndex ? Color.accentColor.opacity(0.18) : Color.clear)
+                    .cornerRadius(6)
                 }
-                .padding(.vertical, 2)
-                .background(index == viewModel.highlightedIndex ? Color.accentColor.opacity(0.18) : Color.clear)
-                .cornerRadius(6)
+                .buttonStyle(.plain)
             }
             .frame(minHeight: 220)
 

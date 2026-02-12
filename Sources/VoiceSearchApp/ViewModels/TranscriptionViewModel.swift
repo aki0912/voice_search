@@ -9,9 +9,11 @@ import VoiceSearchCore
 final class TranscriptionViewModel: ObservableObject {
     @Published var sourceURL: URL?
     @Published var transcript: [TranscriptWord] = []
+    @Published var queue: [URL] = []
     @Published var statusText: String = "ファイルをドラッグしてください"
     @Published var isAnalyzing = false
     @Published var query: String = ""
+    @Published var isContainsMatchMode: Bool = false
     @Published var searchHits: [SearchHit] = []
     @Published var highlightedIndex: Int? = nil
     @Published var currentTime: TimeInterval = 0
@@ -31,7 +33,7 @@ final class TranscriptionViewModel: ObservableObject {
     private let fileDictionaryURL: URL
 
     init(
-        transcriber: TranscriptionService = SpeechURLTranscriptionService(),
+        transcriber: TranscriptionService = HybridTranscriptionService(),
         pipeline: TranscriptionPipeline = TranscriptionPipeline()
     ) {
         self.transcriber = transcriber
@@ -47,12 +49,6 @@ final class TranscriptionViewModel: ObservableObject {
             loadDictionary()
         } catch {
             errorMessage = "設定保存先を用意できませんでした: \(error.localizedDescription)"
-        }
-    }
-
-    deinit {
-        if let token = timeObserverToken {
-            player?.removeTimeObserver(token)
         }
     }
 
@@ -84,23 +80,45 @@ final class TranscriptionViewModel: ObservableObject {
 
     func handleDrop(providers: [NSItemProvider]) async -> Bool {
         guard !providers.isEmpty else { return false }
+        var hasNewFiles = false
 
         for provider in providers {
             do {
                 let url = try await provider.loadDroppedURL()
-                await transcribe(url: url)
-                return true
+                queue.append(url)
+                hasNewFiles = true
             } catch {
                 errorMessage = "ドロップデータの読み込みに失敗: \(error.localizedDescription)"
             }
         }
-        return false
+
+        guard hasNewFiles else { return false }
+
+        if !isAnalyzing {
+            await processQueue()
+        }
+        return true
+    }
+
+    private func processQueue() async {
+        guard !queue.isEmpty else { return }
+
+        while !queue.isEmpty {
+            let next = queue.removeFirst()
+            await transcribe(url: next)
+        }
     }
 
     func transcribe(url: URL) async {
         isAnalyzing = true
         errorMessage = nil
         sourceURL = url
+
+        if !queue.isEmpty {
+            statusText = "\(1 + queue.count)件中現在処理: \(url.lastPathComponent)"
+        } else {
+            statusText = "解析中: \(url.lastPathComponent)"
+        }
 
         let request = TranscriptionRequest(sourceURL: url, locale: nil)
 
@@ -133,11 +151,18 @@ final class TranscriptionViewModel: ObservableObject {
         }
 
         let service = TranscriptSearchService(dictionary: UserDictionary(entries: dictionaryEntries))
-        searchHits = service.search(words: transcript, query: query, options: options)
+        var opts = options
+        opts.mode = isContainsMatchMode ? .contains : .exact
+        searchHits = service.search(words: transcript, query: query, options: opts)
     }
 
     func jump(to hit: SearchHit) {
         seek(to: hit.startTime)
+    }
+
+    func jump(toWordAt index: Int) {
+        guard index >= 0 && index < transcript.count else { return }
+        seek(to: transcript[index].startTime)
     }
 
     func seek(to seconds: TimeInterval) {
@@ -165,10 +190,12 @@ final class TranscriptionViewModel: ObservableObject {
 
         let interval = CMTime(seconds: 0.2, preferredTimescale: 10)
         timeObserverToken = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
-            guard let self else { return }
             let seconds = time.seconds
-            self.currentTime = seconds
-            self.highlightedIndex = PlaybackLocator.nearestWordIndex(at: seconds, in: self.transcript)
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.currentTime = seconds
+                self.highlightedIndex = PlaybackLocator.nearestWordIndex(at: seconds, in: self.transcript)
+            }
         }
     }
 

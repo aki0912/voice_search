@@ -1,6 +1,6 @@
 import Foundation
 
-public struct TranscriptWord: Identifiable, Equatable, Codable {
+public struct TranscriptWord: Identifiable, Equatable, Codable, Sendable {
     public let id: UUID
     public let text: String
     public let startTime: TimeInterval
@@ -71,11 +71,10 @@ public struct UserDictionary: Sendable {
     private var normalizedMap: [String: Set<String>] = [:]
 
     public init(entries: [UserDictionaryEntry] = [], normalizer: TokenNormalizing = DefaultTokenNormalizer()) {
-        var dictionary = UserDictionary()
+        self.normalizedMap = [:]
         for entry in entries {
-            dictionary.insert(entry, normalizer: normalizer)
+            self.insert(entry, normalizer: normalizer)
         }
-        self = dictionary
     }
 
     public mutating func insert(_ entry: UserDictionaryEntry, normalizer: TokenNormalizing = DefaultTokenNormalizer()) {

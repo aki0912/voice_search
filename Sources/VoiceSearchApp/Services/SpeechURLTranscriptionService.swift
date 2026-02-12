@@ -31,8 +31,9 @@ public final class SpeechURLTranscriptionService: NSObject, @unchecked Sendable,
         request.shouldReportPartialResults = false
         request.requiresOnDeviceRecognition = true
 
-        let duration = CMTimeGetSeconds(AVURLAsset(url: url).duration)
-        let segments: [SFTranscriptionSegment] = try await withCheckedThrowingContinuation { continuation in
+        let asset = AVURLAsset(url: url)
+        let duration = try? await asset.load(.duration)
+        let words: [TranscriptWord] = try await withCheckedThrowingContinuation { continuation in
             var alreadyReturned = false
             _ = recognizer.recognitionTask(with: request) { result, error in
                 if alreadyReturned { return }
@@ -46,25 +47,24 @@ public final class SpeechURLTranscriptionService: NSObject, @unchecked Sendable,
                 guard let result else { return }
                 if result.isFinal {
                     alreadyReturned = true
-                    continuation.resume(returning: Array(result.bestTranscription.segments))
+                    let words = result.bestTranscription.segments.map { segment in
+                        TranscriptWord(
+                            text: segment.substring.trimmingCharacters(in: .whitespacesAndNewlines),
+                            startTime: segment.timestamp,
+                            endTime: segment.timestamp + segment.duration
+                        )
+                    }
+                    continuation.resume(returning: words)
                 }
             }
-        }
-
-        let words = segments.map { segment in
-            TranscriptWord(
-                text: segment.substring.trimmingCharacters(in: .whitespacesAndNewlines),
-                startTime: segment.timestamp,
-                endTime: segment.timestamp + segment.duration
-            )
         }
 
         return TranscriptionOutput(
             sourceURL: url,
             words: words,
             locale: locale,
-            duration: duration >= 0 ? duration : nil,
-            diagnostics: ["segments: \(segments.count)"]
+            duration: duration.map(CMTimeGetSeconds),
+            diagnostics: ["segments: \(words.count)"]
         )
     }
 

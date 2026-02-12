@@ -8,7 +8,7 @@
 
 - Service (OS連携層)
   - `SpeechAnalyzer`・`SFSpeech`・AVFoundation・ファイルIO
-  - Coreから独立した`TranscriptionService`プロトコル実装
+  - Coreから独立した`TranscriptionService`実装
 
 - Presentation (UI層)
   - SwiftUI/Mac AppKit
@@ -16,8 +16,8 @@
 
 ## データフロー
 1. ドラッグ&ドロップで`file URL`取得
-2. Transcription Service で分析ジョブ実行
-3. 結果を `TranscriptWord` に変換
+2. Transcription Service（`HybridTranscriptionService`）で分析ジョブ実行
+3. 結果を`TranscriptWord`に変換
 4. Core の `TranscriptSearchService` に渡して検索可能状態化
 5. UIでヒット選択 → `startTime` でAVPlayer seek/play
 
@@ -27,12 +27,10 @@
 - 文字起こしイベントを順序保証した配列にまとめてUIへ渡す
 - 辞書登録はUI層で保持し、検索時にCoreへ反映
 
-- 追加のサービス境界
-  - `TranscriptionService` プロトコルで文字起こしエンジンを抽象化
-  - `TranscriptionPipeline` で
-    - 対応拡張子チェック
-    - 文字起こし結果のサニタイズ
-    - 時間順整列
-    - 出力の `TranscriptionOutput` 化
-  - `VoiceSearchApp/Services/SpeechURLTranscriptionService` は現在 `URL` ベース文字起こしとして接続済み
-  - 将来は `SpeechAnalyzer` 実装を `SpeechURLTranscriptionService` と入れ替え可能
+## サービス切替レイヤ
+- `VoiceSearchApp/Services/SpeechAnalyzerTranscriptionService.swift`
+  - SpeechAnalyzer実装の有無と利用可否を管理
+- `VoiceSearchApp/Services/HybridTranscriptionService.swift`
+  - `SpeechAnalyzer`優先 or `SFSpeech`フォールバックの切替
+- `VoiceSearchApp/Services/SpeechURLTranscriptionService.swift`
+  - 現在の実運用バックアップ経路
