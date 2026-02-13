@@ -67,6 +67,13 @@ struct MainView: View {
                 .padding(.horizontal)
             }
 
+            if viewModel.isVideoSource, let playbackPlayer = viewModel.playbackPlayer {
+                PlayerView(player: playbackPlayer)
+                    .frame(minHeight: 220, maxHeight: 320)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .padding(.horizontal)
+            }
+
             HStack {
                 Button(action: { viewModel.playPause() }) {
                     Image(systemName: "playpause.fill")

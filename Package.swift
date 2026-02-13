@@ -22,7 +22,10 @@ let package = Package(
         ),
         .executableTarget(
             name: "VoiceSearchApp",
-            dependencies: ["VoiceSearchCore"]
+            dependencies: ["VoiceSearchCore"],
+            linkerSettings: [
+                .linkedFramework("AVKit"),
+            ]
         ),
         .testTarget(
             name: "VoiceSearchCoreTests",

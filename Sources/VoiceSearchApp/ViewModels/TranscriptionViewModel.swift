@@ -8,6 +8,7 @@ import VoiceSearchCore
 @MainActor
 final class TranscriptionViewModel: ObservableObject {
     @Published var sourceURL: URL?
+    @Published var isVideoSource = false
     @Published var transcript: [TranscriptWord] = []
     @Published var queue: [URL] = []
     @Published var statusText: String = "ファイルをドラッグしてください"
@@ -57,6 +58,10 @@ final class TranscriptionViewModel: ObservableObject {
         } catch {
             errorMessage = "設定保存先を用意できませんでした: \(error.localizedDescription)"
         }
+    }
+
+    var playbackPlayer: AVPlayer? {
+        player
     }
 
     func addDictionaryEntry(canonical rawCanonical: String, aliasesText rawAliases: String) -> Bool {
@@ -121,6 +126,7 @@ final class TranscriptionViewModel: ObservableObject {
         isAnalyzing = true
         errorMessage = nil
         sourceURL = url
+        isVideoSource = isVideoFile(url)
 
         if !queue.isEmpty {
             statusText = "\(1 + queue.count)件中現在処理: \(url.lastPathComponent)"
@@ -429,5 +435,11 @@ final class TranscriptionViewModel: ObservableObject {
         let seconds = Int(value) % 60
         let millis = Int((value - floor(value)) * 1000)
         return String(format: "%02d:%02d:%02d,%03d", hours, minutes, seconds, millis)
+    }
+
+    private func isVideoFile(_ url: URL) -> Bool {
+        let ext = url.pathExtension.lowercased()
+        let videoExtensions: Set<String> = ["mp4", "mov", "m4v", "mkv", "avi", "webm", "ts", "mts"]
+        return videoExtensions.contains(ext)
     }
 }
