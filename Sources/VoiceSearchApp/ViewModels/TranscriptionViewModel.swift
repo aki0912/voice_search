@@ -31,6 +31,13 @@ final class TranscriptionViewModel: ObservableObject {
     private var timeObserverPlayer: AVPlayer?
     private let fileDictionaryURL: URL
 
+    private enum TranscriptExportFormat: String {
+        case txt
+        case srt
+
+        var suggestedExtension: String { rawValue }
+    }
+
     init(
         transcriber: TranscriptionService = HybridTranscriptionService(),
         pipeline: TranscriptionPipeline = TranscriptionPipeline()
@@ -185,6 +192,38 @@ final class TranscriptionViewModel: ObservableObject {
         }
     }
 
+    func exportTranscriptToFile() {
+        guard !transcript.isEmpty else {
+            errorMessage = "書き出す文字起こしがありません"
+            return
+        }
+
+        guard let format = promptExportFormat() else { return }
+
+        let panel = NSSavePanel()
+        panel.title = "文字起こしテキストを保存"
+        panel.prompt = "保存"
+        panel.canCreateDirectories = true
+        panel.isExtensionHidden = false
+        if format == .txt {
+            panel.allowedContentTypes = [.plainText]
+        } else if let srtType = UTType(filenameExtension: "srt") {
+            panel.allowedContentTypes = [srtType]
+        }
+        panel.nameFieldStringValue = suggestedExportFilename(format: format)
+
+        guard panel.runModal() == .OK, let destinationURL = panel.url else { return }
+
+        do {
+            let text = transcriptTextContent(format: format)
+            try text.write(to: destinationURL, atomically: true, encoding: .utf8)
+            errorMessage = nil
+            statusText = "テキストを書き出しました: \(destinationURL.lastPathComponent)"
+        } catch {
+            errorMessage = "テキスト書き出しに失敗: \(error.localizedDescription)"
+        }
+    }
+
     private func startTimeObservation() {
         detachTimeObserver()
         guard let player else { return }
@@ -248,5 +287,112 @@ final class TranscriptionViewModel: ObservableObject {
         }
 
         return output
+    }
+
+    private func promptExportFormat() -> TranscriptExportFormat? {
+        let alert = NSAlert()
+        alert.messageText = "書き出し形式を選択"
+        alert.informativeText = "文字起こしを TXT または SRT で保存できます。"
+        alert.addButton(withTitle: "SRT")
+        alert.addButton(withTitle: "TXT")
+        alert.addButton(withTitle: "キャンセル")
+
+        let response = alert.runModal()
+        switch response {
+        case .alertFirstButtonReturn:
+            return .srt
+        case .alertSecondButtonReturn:
+            return .txt
+        default:
+            return nil
+        }
+    }
+
+    private func suggestedExportFilename(format: TranscriptExportFormat) -> String {
+        let base = sourceURL?.deletingPathExtension().lastPathComponent ?? "transcript"
+        return "\(base)_transcript.\(format.suggestedExtension)"
+    }
+
+    private func transcriptTextContent(format: TranscriptExportFormat) -> String {
+        switch format {
+        case .txt:
+            return transcriptTextContentTXT()
+        case .srt:
+            return transcriptTextContentSRT()
+        }
+    }
+
+    private func transcriptTextContentTXT() -> String {
+        let plain = transcript.map(\.text).joined(separator: " ")
+        let timed = transcript.map { word in
+            "[\(formatTimeForExport(word.startTime)) - \(formatTimeForExport(word.endTime))] \(word.text)"
+        }.joined(separator: "\n")
+
+        return """
+        Transcript
+        \(plain)
+
+        Timed Words
+        \(timed)
+        """
+    }
+
+    private func transcriptTextContentSRT() -> String {
+        struct Cue {
+            let start: TimeInterval
+            let end: TimeInterval
+            let text: String
+        }
+
+        var cues: [Cue] = []
+        var index = 0
+
+        while index < transcript.count {
+            let startWord = transcript[index]
+            var endIndex = index
+
+            while endIndex + 1 < transcript.count {
+                let nextIndex = endIndex + 1
+                let duration = transcript[nextIndex].endTime - startWord.startTime
+                let wordCount = nextIndex - index + 1
+                if duration > 2.5 || wordCount > 8 { break }
+                endIndex = nextIndex
+            }
+
+            let text = transcript[index...endIndex].map(\.text).joined(separator: " ")
+            cues.append(
+                Cue(
+                    start: startWord.startTime,
+                    end: transcript[endIndex].endTime,
+                    text: text
+                )
+            )
+            index = endIndex + 1
+        }
+
+        return cues.enumerated().map { offset, cue in
+            """
+            \(offset + 1)
+            \(formatTimeForSRT(cue.start)) --> \(formatTimeForSRT(cue.end))
+            \(cue.text)
+            """
+        }.joined(separator: "\n\n")
+    }
+
+    private func formatTimeForExport(_ value: TimeInterval) -> String {
+        guard value.isFinite, value >= 0 else { return "00:00.000" }
+        let minutes = Int(value / 60)
+        let seconds = Int(value) % 60
+        let millis = Int((value - floor(value)) * 1000)
+        return String(format: "%02d:%02d.%03d", minutes, seconds, millis)
+    }
+
+    private func formatTimeForSRT(_ value: TimeInterval) -> String {
+        guard value.isFinite, value >= 0 else { return "00:00:00,000" }
+        let hours = Int(value / 3600)
+        let minutes = Int(value.truncatingRemainder(dividingBy: 3600) / 60)
+        let seconds = Int(value) % 60
+        let millis = Int((value - floor(value)) * 1000)
+        return String(format: "%02d:%02d:%02d,%03d", hours, minutes, seconds, millis)
     }
 }

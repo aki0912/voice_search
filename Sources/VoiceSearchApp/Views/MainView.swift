@@ -69,6 +69,11 @@ struct MainView: View {
                     .font(.system(.body, design: .monospaced))
                     .frame(width: 80, alignment: .leading)
 
+                Button("テキストを書き出し") {
+                    viewModel.exportTranscriptToFile()
+                }
+                .disabled(viewModel.transcript.isEmpty || viewModel.isAnalyzing)
+
                 Spacer()
             }
             .padding(.horizontal)
