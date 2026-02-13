@@ -1,5 +1,6 @@
 import Foundation
 import AVFoundation
+import AudioToolbox
 import Speech
 import VoiceSearchCore
 
@@ -95,15 +96,22 @@ public final class SpeechURLTranscriptionService: NSObject, @unchecked Sendable,
         let videoTracks = try await asset.loadTracks(withMediaType: .video)
         let ext = sourceURL.pathExtension.lowercased()
         let audioOnlyExtensions: Set<String> = ["m4a", "mp3", "wav", "caf", "aac", "aiff", "flac", "ogg", "opus"]
-        let shouldExtractAudio = !videoTracks.isEmpty || !audioOnlyExtensions.contains(ext)
+        let shouldExtractAudio = !videoTracks.isEmpty || !audioOnlyExtensions.contains(ext) || audioTracks.count > 1
         guard shouldExtractAudio else {
             return PreparedRecognitionInput(url: sourceURL, cleanupURL: nil)
         }
 
-        guard let exporter = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetAppleM4A) else {
-            throw SpeechURLTranscriptionServiceError.invalidInput("Failed to create audio extractor for video.")
+        let selectedTrack = preferredAudioTrack(from: audioTracks)
+        let composition = AVMutableComposition()
+        guard let compositionTrack = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) else {
+            throw SpeechURLTranscriptionServiceError.invalidInput("Failed to prepare audio composition.")
         }
+        let selectedRange = try await selectedTrack.load(.timeRange)
+        try compositionTrack.insertTimeRange(selectedRange, of: selectedTrack, at: .zero)
 
+        guard let exporter = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetAppleM4A) else {
+            throw SpeechURLTranscriptionServiceError.invalidInput("Failed to create audio extractor.")
+        }
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
             .appendingPathExtension("m4a")
@@ -128,6 +136,35 @@ public final class SpeechURLTranscriptionService: NSObject, @unchecked Sendable,
         }
 
         return PreparedRecognitionInput(url: tempURL, cleanupURL: tempURL)
+    }
+
+    private func preferredAudioTrack(from tracks: [AVAssetTrack]) -> AVAssetTrack {
+        guard tracks.count > 1 else { return tracks[0] }
+
+        let preferredSubtypes: Set<FourCharCode> = [
+            kAudioFormatMPEG4AAC,
+            kAudioFormatMPEG4AAC_HE,
+            kAudioFormatLinearPCM,
+            kAudioFormatAppleLossless,
+            kAudioFormatMPEGLayer3,
+            kAudioFormatOpus,
+            kAudioFormatFLAC,
+        ]
+
+        let typedTracks: [(track: AVAssetTrack, subtype: FourCharCode?)] = tracks.map { track in
+            let formatDescriptions = track.formatDescriptions as? [CMFormatDescription] ?? []
+            let subtype = formatDescriptions.first.map { CMFormatDescriptionGetMediaSubType($0) }
+            return (track: track, subtype: subtype)
+        }
+
+        if let match = typedTracks.first(where: { candidate in
+            guard let subtype = candidate.subtype else { return false }
+            return preferredSubtypes.contains(subtype)
+        }) {
+            return match.track
+        }
+
+        return tracks[0]
     }
 
     private func requestAuthorizationIfNeeded() async throws {
