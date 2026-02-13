@@ -157,7 +157,7 @@ struct MainView: View {
                     guard focusedField == nil else { return }
                     guard let newIndex, viewModel.transcript.indices.contains(newIndex) else { return }
                     let targetID = viewModel.transcript[newIndex].id
-                    withAnimation(.easeInOut(duration: 0.15)) {
+                    DispatchQueue.main.async {
                         proxy.scrollTo(targetID, anchor: .center)
                     }
                 }

@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private func activateAndFocusWindow() {
         NSApplication.shared.setActivationPolicy(.regular)
