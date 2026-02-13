@@ -26,6 +26,7 @@ final class TranscriptionViewModel: ObservableObject {
     private let normalizer = DefaultTokenNormalizer()
     private let options = SearchOptions()
 
+    private var rawTranscript: [TranscriptWord] = []
     private var player: AVPlayer?
     private var timeObserverToken: Any?
     private var timeObserverPlayer: AVPlayer?
@@ -70,6 +71,7 @@ final class TranscriptionViewModel: ObservableObject {
         let entry = UserDictionaryEntry(canonical: canonical, aliases: aliases)
         dictionaryEntries.removeAll { normalizer.normalize($0.canonical) == normalizer.normalize(canonical) }
         dictionaryEntries.append(entry)
+        applyDictionaryDisplayNormalization()
         persistDictionary()
         performSearch()
         return true
@@ -79,6 +81,7 @@ final class TranscriptionViewModel: ObservableObject {
         dictionaryEntries.removeAll {
             normalizer.normalize($0.canonical) == normalizer.normalize(entry.canonical)
         }
+        applyDictionaryDisplayNormalization()
         persistDictionary()
         performSearch()
     }
@@ -133,7 +136,8 @@ final class TranscriptionViewModel: ObservableObject {
 
         do {
             let output = try await pipeline.run(request, service: transcriber)
-            transcript = output.words
+            rawTranscript = output.words
+            applyDictionaryDisplayNormalization()
 
             detachTimeObserver()
             player = AVPlayer(url: url)
@@ -148,6 +152,7 @@ final class TranscriptionViewModel: ObservableObject {
         } catch {
             errorMessage = error.localizedDescription
             statusText = "文字起こしに失敗"
+            rawTranscript = []
             transcript = []
             searchHits = []
         }
@@ -287,6 +292,36 @@ final class TranscriptionViewModel: ObservableObject {
         }
 
         return output
+    }
+
+    private func applyDictionaryDisplayNormalization() {
+        guard !rawTranscript.isEmpty else {
+            transcript = []
+            return
+        }
+
+        var displayMap: [String: String] = [:]
+        for entry in dictionaryEntries {
+            let canonical = entry.canonical.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !canonical.isEmpty else { continue }
+
+            let canonicalKey = normalizer.normalize(canonical)
+            if !canonicalKey.isEmpty {
+                displayMap[canonicalKey] = canonical
+            }
+
+            for alias in entry.aliases {
+                let aliasKey = normalizer.normalize(alias)
+                if aliasKey.isEmpty { continue }
+                displayMap[aliasKey] = canonical
+            }
+        }
+
+        transcript = rawTranscript.map { word in
+            let key = normalizer.normalize(word.text)
+            guard !key.isEmpty, let replacement = displayMap[key] else { return word }
+            return TranscriptWord(id: word.id, text: replacement, startTime: word.startTime, endTime: word.endTime)
+        }
     }
 
     private func promptExportFormat() -> TranscriptExportFormat? {

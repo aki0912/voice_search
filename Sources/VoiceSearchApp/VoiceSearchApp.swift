@@ -2,8 +2,20 @@ import SwiftUI
 import AppKit
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    private func activateAndFocusWindow() {
+        NSApplication.shared.setActivationPolicy(.regular)
+        _ = NSRunningApplication.current.activate(options: [.activateIgnoringOtherApps])
+
+        if let window = NSApplication.shared.windows.first(where: { $0.isVisible }) ?? NSApplication.shared.windows.first {
+            window.makeKeyAndOrderFront(nil)
+        }
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApplication.shared.activate(ignoringOtherApps: true)
+        activateAndFocusWindow()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+            self?.activateAndFocusWindow()
+        }
     }
 }
 

@@ -6,6 +6,13 @@ struct MainView: View {
     @ObservedObject var viewModel: TranscriptionViewModel
     @State private var newTermCanonical: String = ""
     @State private var newTermAliases: String = ""
+    @FocusState private var focusedField: FocusedField?
+
+    private enum FocusedField: Hashable {
+        case search
+        case canonical
+        case aliases
+    }
 
     var body: some View {
         VStack(spacing: 14) {
@@ -81,6 +88,7 @@ struct MainView: View {
             HStack {
                 TextField("検索ワード", text: $viewModel.query)
                     .textFieldStyle(.roundedBorder)
+                    .focused($focusedField, equals: .search)
                     .onSubmit {
                         viewModel.performSearch()
                     }
@@ -145,6 +153,7 @@ struct MainView: View {
                 }
                 .frame(minHeight: 220)
                 .onChange(of: viewModel.highlightedIndex) { newIndex in
+                    guard focusedField == nil else { return }
                     guard let newIndex, viewModel.transcript.indices.contains(newIndex) else { return }
                     let targetID = viewModel.transcript[newIndex].id
                     withAnimation(.easeInOut(duration: 0.15)) {
@@ -162,8 +171,10 @@ struct MainView: View {
                 HStack {
                     TextField("登録語（例: クラウド）", text: $newTermCanonical)
                         .textFieldStyle(.roundedBorder)
+                        .focused($focusedField, equals: .canonical)
                     TextField("同義語（カンマ区切り）", text: $newTermAliases)
                         .textFieldStyle(.roundedBorder)
+                        .focused($focusedField, equals: .aliases)
                     Button("追加") {
                         let added = viewModel.addDictionaryEntry(
                             canonical: newTermCanonical,
