@@ -13,7 +13,7 @@ final class TranscriptionViewModel: ObservableObject {
     @Published var statusText: String = "ファイルをドラッグしてください"
     @Published var isAnalyzing = false
     @Published var query: String = ""
-    @Published var isContainsMatchMode: Bool = false
+    @Published var isContainsMatchMode: Bool = true
     @Published var searchHits: [SearchHit] = []
     @Published var highlightedIndex: Int? = nil
     @Published var currentTime: TimeInterval = 0

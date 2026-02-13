@@ -64,6 +64,7 @@ struct MainView: View {
                     }
                     .disabled(viewModel.isAnalyzing)
                 }
+                .padding(.horizontal)
             }
 
             HStack {
