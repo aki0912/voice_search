@@ -28,6 +28,7 @@ final class TranscriptionViewModel: ObservableObject {
 
     private var player: AVPlayer?
     private var timeObserverToken: Any?
+    private var timeObserverPlayer: AVPlayer?
     private let fileDictionaryURL: URL
 
     init(
@@ -126,6 +127,8 @@ final class TranscriptionViewModel: ObservableObject {
         do {
             let output = try await pipeline.run(request, service: transcriber)
             transcript = output.words
+
+            detachTimeObserver()
             player = AVPlayer(url: url)
 
             let itemCount = transcript.count
@@ -183,10 +186,7 @@ final class TranscriptionViewModel: ObservableObject {
     }
 
     private func startTimeObservation() {
-        if let token = timeObserverToken {
-            player?.removeTimeObserver(token)
-            timeObserverToken = nil
-        }
+        detachTimeObserver()
         guard let player else { return }
 
         let interval = CMTime(seconds: 0.2, preferredTimescale: 10)
@@ -198,6 +198,15 @@ final class TranscriptionViewModel: ObservableObject {
                 self.highlightedIndex = PlaybackLocator.nearestWordIndex(at: seconds, in: self.transcript)
             }
         }
+        timeObserverPlayer = player
+    }
+
+    private func detachTimeObserver() {
+        if let token = timeObserverToken, let observerPlayer = timeObserverPlayer {
+            observerPlayer.removeTimeObserver(token)
+        }
+        timeObserverToken = nil
+        timeObserverPlayer = nil
     }
 
     private func loadDictionary() {
