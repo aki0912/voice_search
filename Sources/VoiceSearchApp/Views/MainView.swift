@@ -4,6 +4,8 @@ import VoiceSearchCore
 
 struct MainView: View {
     @ObservedObject var viewModel: TranscriptionViewModel
+    @State private var newTermCanonical: String = ""
+    @State private var newTermAliases: String = ""
 
     var body: some View {
         VStack(spacing: 14) {
@@ -115,26 +117,36 @@ struct MainView: View {
 
             Divider()
 
-            List(Array(viewModel.transcript.enumerated()), id: \.element.id) { index, word in
-                Button {
-                    viewModel.jump(toWordAt: index)
-                } label: {
-                    HStack {
-                        Text(formatTime(word.startTime))
-                            .font(.system(.caption, design: .monospaced))
-                            .frame(width: 70, alignment: .leading)
-                        Text(word.text)
-                            .foregroundStyle(.primary)
-                        Spacer()
+            ScrollViewReader { proxy in
+                List(Array(viewModel.transcript.enumerated()), id: \.element.id) { index, word in
+                    Button {
+                        viewModel.jump(toWordAt: index)
+                    } label: {
+                        HStack {
+                            Text(formatTime(word.startTime))
+                                .font(.system(.caption, design: .monospaced))
+                                .frame(width: 70, alignment: .leading)
+                            Text(word.text)
+                                .foregroundStyle(.primary)
+                            Spacer()
+                        }
+                        .padding(.vertical, 2)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(index == viewModel.highlightedIndex ? Color.accentColor.opacity(0.18) : Color.clear)
+                        .cornerRadius(6)
                     }
-                    .padding(.vertical, 2)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(index == viewModel.highlightedIndex ? Color.accentColor.opacity(0.18) : Color.clear)
-                    .cornerRadius(6)
+                    .id(word.id)
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
+                .frame(minHeight: 220)
+                .onChange(of: viewModel.highlightedIndex) { newIndex in
+                    guard let newIndex, viewModel.transcript.indices.contains(newIndex) else { return }
+                    let targetID = viewModel.transcript[newIndex].id
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        proxy.scrollTo(targetID, anchor: .center)
+                    }
+                }
             }
-            .frame(minHeight: 220)
 
             Divider()
 
@@ -143,14 +155,21 @@ struct MainView: View {
                     .font(.headline)
 
                 HStack {
-                    TextField("登録語（例: クラウド）", text: $viewModel.newTermCanonical)
+                    TextField("登録語（例: クラウド）", text: $newTermCanonical)
                         .textFieldStyle(.roundedBorder)
-                    TextField("同義語（カンマ区切り）", text: $viewModel.newTermAliases)
+                    TextField("同義語（カンマ区切り）", text: $newTermAliases)
                         .textFieldStyle(.roundedBorder)
                     Button("追加") {
-                        viewModel.addDictionaryEntry()
+                        let added = viewModel.addDictionaryEntry(
+                            canonical: newTermCanonical,
+                            aliasesText: newTermAliases
+                        )
+                        if added {
+                            newTermCanonical = ""
+                            newTermAliases = ""
+                        }
                     }
-                    .disabled(viewModel.newTermCanonical.isEmpty)
+                    .disabled(newTermCanonical.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
 
                 List(viewModel.dictionaryEntries, id: \.canonical) { entry in

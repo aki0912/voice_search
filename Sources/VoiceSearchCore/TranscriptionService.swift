@@ -3,10 +3,12 @@ import Foundation
 public struct TranscriptionRequest: Sendable {
     public let sourceURL: URL
     public let locale: Locale?
+    public let contextualStrings: [String]
 
-    public init(sourceURL: URL, locale: Locale? = nil) {
+    public init(sourceURL: URL, locale: Locale? = nil, contextualStrings: [String] = []) {
         self.sourceURL = sourceURL
         self.locale = locale
+        self.contextualStrings = contextualStrings
     }
 }
 
@@ -102,4 +104,3 @@ public struct TranscriptionPipeline: Sendable {
         acceptedExtensions.contains(url.pathExtension.lowercased())
     }
 }
-

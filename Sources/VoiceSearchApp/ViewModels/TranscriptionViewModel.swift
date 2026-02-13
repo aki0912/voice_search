@@ -19,8 +19,6 @@ final class TranscriptionViewModel: ObservableObject {
     @Published var currentTime: TimeInterval = 0
     @Published var isDropTargeted = false
     @Published var dictionaryEntries: [UserDictionaryEntry] = []
-    @Published var newTermCanonical: String = ""
-    @Published var newTermAliases: String = ""
     @Published var errorMessage: String?
 
     private let transcriber: TranscriptionService
@@ -52,11 +50,11 @@ final class TranscriptionViewModel: ObservableObject {
         }
     }
 
-    func addDictionaryEntry() {
-        let canonical = newTermCanonical.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !canonical.isEmpty else { return }
+    func addDictionaryEntry(canonical rawCanonical: String, aliasesText rawAliases: String) -> Bool {
+        let canonical = rawCanonical.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !canonical.isEmpty else { return false }
 
-        let aliases = newTermAliases
+        let aliases = rawAliases
             .split(whereSeparator: { $0 == "," || $0 == "\n" })
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
@@ -64,10 +62,9 @@ final class TranscriptionViewModel: ObservableObject {
         let entry = UserDictionaryEntry(canonical: canonical, aliases: aliases)
         dictionaryEntries.removeAll { normalizer.normalize($0.canonical) == normalizer.normalize(canonical) }
         dictionaryEntries.append(entry)
-        newTermCanonical = ""
-        newTermAliases = ""
         persistDictionary()
         performSearch()
+        return true
     }
 
     func removeDictionaryEntry(_ entry: UserDictionaryEntry) {
@@ -120,7 +117,11 @@ final class TranscriptionViewModel: ObservableObject {
             statusText = "解析中: \(url.lastPathComponent)"
         }
 
-        let request = TranscriptionRequest(sourceURL: url, locale: nil)
+        let request = TranscriptionRequest(
+            sourceURL: url,
+            locale: nil,
+            contextualStrings: transcriptionContextualStrings()
+        )
 
         do {
             let output = try await pipeline.run(request, service: transcriber)
@@ -217,5 +218,26 @@ final class TranscriptionViewModel: ObservableObject {
         } catch {
             errorMessage = "辞書の保存に失敗: \(error.localizedDescription)"
         }
+    }
+
+    private func transcriptionContextualStrings() -> [String] {
+        var seen = Set<String>()
+        var output: [String] = []
+
+        for entry in dictionaryEntries {
+            let candidates = [entry.canonical] + entry.aliases
+            for raw in candidates {
+                let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+                if text.isEmpty { continue }
+
+                let key = normalizer.normalize(text)
+                if key.isEmpty || seen.contains(key) { continue }
+                seen.insert(key)
+                output.append(text)
+                if output.count >= 100 { return output }
+            }
+        }
+
+        return output
     }
 }

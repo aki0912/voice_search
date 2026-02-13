@@ -27,15 +27,16 @@ public final class SpeechURLTranscriptionService: NSObject, @unchecked Sendable,
 
         try await requestAuthorizationIfNeeded()
 
-        let request = SFSpeechURLRecognitionRequest(url: url)
-        request.shouldReportPartialResults = false
-        request.requiresOnDeviceRecognition = true
+        let recognitionRequest = SFSpeechURLRecognitionRequest(url: url)
+        recognitionRequest.shouldReportPartialResults = false
+        recognitionRequest.requiresOnDeviceRecognition = true
+        recognitionRequest.contextualStrings = Array(request.contextualStrings.prefix(100))
 
         let asset = AVURLAsset(url: url)
         let duration = try? await asset.load(.duration)
         let words: [TranscriptWord] = try await withCheckedThrowingContinuation { continuation in
             var alreadyReturned = false
-            _ = recognizer.recognitionTask(with: request) { result, error in
+            _ = recognizer.recognitionTask(with: recognitionRequest) { result, error in
                 if alreadyReturned { return }
 
                 if let error {
@@ -64,7 +65,10 @@ public final class SpeechURLTranscriptionService: NSObject, @unchecked Sendable,
             words: words,
             locale: locale,
             duration: duration.map(CMTimeGetSeconds),
-            diagnostics: ["segments: \(words.count)"]
+            diagnostics: [
+                "segments: \(words.count)",
+                "contextualStrings: \(recognitionRequest.contextualStrings.count)"
+            ]
         )
     }
 

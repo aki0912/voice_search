@@ -1,7 +1,16 @@
 import SwiftUI
+import AppKit
+
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        NSApplication.shared.activate(ignoringOtherApps: true)
+    }
+}
 
 @main
+@MainActor
 struct VoiceSearchApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var viewModel = TranscriptionViewModel()
 
     var body: some Scene {
