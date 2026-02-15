@@ -113,24 +113,56 @@ struct MainView: View {
                     .padding(.horizontal)
                 }
 
-            HStack {
-                Button(action: { viewModel.playPause() }) {
-                    Image(systemName: "playpause.fill")
+            if !viewModel.isVideoSource, viewModel.playbackPlayer != nil {
+                VStack(spacing: 10) {
+                    HStack {
+                        Spacer()
+                        Button(action: { viewModel.playPause() }) {
+                            Label("再生 / 停止", systemImage: "playpause.fill")
+                                .font(.system(size: 18, weight: .semibold))
+                                .padding(.horizontal, 24)
+                                .padding(.vertical, 12)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                        .disabled(viewModel.sourceURL == nil)
+                        Spacer()
+                    }
+
+                    HStack {
+                        Text("\(formatTime(viewModel.currentTime))")
+                            .font(.system(.body, design: .monospaced))
+                            .frame(width: 80, alignment: .leading)
+
+                        Spacer()
+
+                        Button("テキストを書き出し") {
+                            viewModel.exportTranscriptToFile()
+                        }
+                        .disabled(viewModel.transcript.isEmpty || viewModel.isAnalyzing)
+                    }
                 }
-                .disabled(viewModel.sourceURL == nil)
+                .padding(.horizontal)
+            } else {
+                HStack {
+                    Button(action: { viewModel.playPause() }) {
+                        Image(systemName: "playpause.fill")
+                    }
+                    .disabled(viewModel.sourceURL == nil)
 
-                Text("\(formatTime(viewModel.currentTime))")
-                    .font(.system(.body, design: .monospaced))
-                    .frame(width: 80, alignment: .leading)
+                    Text("\(formatTime(viewModel.currentTime))")
+                        .font(.system(.body, design: .monospaced))
+                        .frame(width: 80, alignment: .leading)
 
-                Button("テキストを書き出し") {
-                    viewModel.exportTranscriptToFile()
+                    Button("テキストを書き出し") {
+                        viewModel.exportTranscriptToFile()
+                    }
+                    .disabled(viewModel.transcript.isEmpty || viewModel.isAnalyzing)
+
+                    Spacer()
                 }
-                .disabled(viewModel.transcript.isEmpty || viewModel.isAnalyzing)
-
-                Spacer()
+                .padding(.horizontal)
             }
-            .padding(.horizontal)
 
             if viewModel.playbackPlayer != nil, viewModel.sourceDuration > 0 {
                 HStack(spacing: 10) {
