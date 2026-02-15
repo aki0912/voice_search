@@ -40,6 +40,7 @@ final class TranscriptionViewModel: ObservableObject {
     @Published var currentTime: TimeInterval = 0
     @Published var sourceDuration: TimeInterval = 0
     @Published var scrubPosition: TimeInterval = 0
+    @Published var txtPauseLineBreakThreshold: TimeInterval = 0.1
     @Published var isDropTargeted = false
     @Published var dictionaryEntries: [UserDictionaryEntry] = []
     @Published var errorMessage: String?
@@ -409,6 +410,11 @@ final class TranscriptionViewModel: ObservableObject {
         }
     }
 
+    func updateTxtPauseLineBreakThreshold(_ value: TimeInterval) {
+        guard value.isFinite else { return }
+        txtPauseLineBreakThreshold = min(max(0, value), 2.0)
+    }
+
     private func startTimeObservation() {
         detachTimeObserver()
         guard let player else { return }
@@ -595,7 +601,9 @@ final class TranscriptionViewModel: ObservableObject {
     }
 
     private func transcriptTextContentTXT() -> String {
-        let plain = TranscriptPlainTextFormatter().format(words: transcript)
+        let plain = TranscriptPlainTextFormatter(
+            pauseLineBreakThreshold: min(max(0, txtPauseLineBreakThreshold), 2.0)
+        ).format(words: transcript)
         let timed = transcript.map { word in
             "[\(formatTimeForExport(word.startTime)) - \(formatTimeForExport(word.endTime))] \(word.text)"
         }.joined(separator: "\n")

@@ -136,4 +136,22 @@ struct TranscriptionViewModelFailureStateTests {
         #expect(viewModel.scrubPosition == 0)
         #expect(viewModel.currentTime == 0)
     }
+
+    @MainActor
+    @Test
+    func updateTxtPauseLineBreakThresholdClampsRange() {
+        let viewModel = TranscriptionViewModel()
+
+        viewModel.updateTxtPauseLineBreakThreshold(0.25)
+        #expect(viewModel.txtPauseLineBreakThreshold == 0.25)
+
+        viewModel.updateTxtPauseLineBreakThreshold(-1.0)
+        #expect(viewModel.txtPauseLineBreakThreshold == 0.0)
+
+        viewModel.updateTxtPauseLineBreakThreshold(9.0)
+        #expect(viewModel.txtPauseLineBreakThreshold == 2.0)
+
+        viewModel.updateTxtPauseLineBreakThreshold(.nan)
+        #expect(viewModel.txtPauseLineBreakThreshold == 2.0)
+    }
 }

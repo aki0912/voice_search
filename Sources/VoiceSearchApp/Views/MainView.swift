@@ -201,6 +201,38 @@ struct MainView: View {
                 .padding(.horizontal)
             }
 
+            if !viewModel.transcript.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("TXT改行しきい値（秒）")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    HStack(spacing: 10) {
+                        TextField(
+                            "0.10",
+                            value: $viewModel.txtPauseLineBreakThreshold,
+                            formatter: Self.thresholdFormatter
+                        )
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 90)
+                        .multilineTextAlignment(.trailing)
+                        .onSubmit {
+                            viewModel.updateTxtPauseLineBreakThreshold(viewModel.txtPauseLineBreakThreshold)
+                        }
+                        .onChange(of: viewModel.txtPauseLineBreakThreshold) { newValue in
+                            viewModel.updateTxtPauseLineBreakThreshold(newValue)
+                        }
+
+                        Text("0.00 - 2.00")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        Spacer()
+                    }
+                }
+                .padding(.horizontal)
+            }
+
             HStack {
                 TextField("検索ワード", text: $viewModel.query)
                     .textFieldStyle(.roundedBorder)
@@ -359,6 +391,14 @@ struct MainView: View {
         return Text(prefix)
         + Text(matched).foregroundColor(.red).fontWeight(.semibold)
         + Text(suffix)
+    }
+
+    private static var thresholdFormatter: NumberFormatter {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.minimumFractionDigits = 0
+        formatter.maximumFractionDigits = 2
+        return formatter
     }
 }
 
