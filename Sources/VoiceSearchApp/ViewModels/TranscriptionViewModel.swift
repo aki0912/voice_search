@@ -60,7 +60,6 @@ final class TranscriptionViewModel: ObservableObject {
     private var timeObserverToken: Any?
     private var timeObserverPlayer: AVPlayer?
     private var analysisProgressTask: Task<Void, Never>?
-    private var interactiveSeekWorkItem: DispatchWorkItem?
     private var isScrubbingPlayback = false
     private var scrubWasPlayingBeforeDrag = false
     private let fileDictionaryURL: URL
@@ -212,7 +211,6 @@ final class TranscriptionViewModel: ObservableObject {
             }
             currentTime = 0
             scrubPosition = 0
-            cancelPendingInteractiveSeek()
             isScrubbingPlayback = false
             scrubWasPlayingBeforeDrag = false
 
@@ -271,7 +269,6 @@ final class TranscriptionViewModel: ObservableObject {
 
     func seek(to seconds: TimeInterval) {
         guard let player else { return }
-        cancelPendingInteractiveSeek()
         let clampedSeconds = clampedTime(seconds)
         let time = CMTime(seconds: clampedSeconds, preferredTimescale: 600)
         let tolerance = finalSeekTolerance()
@@ -294,7 +291,6 @@ final class TranscriptionViewModel: ObservableObject {
 
     func beginScrubbing() {
         guard !isScrubbingPlayback else { return }
-        cancelPendingInteractiveSeek()
         scrubWasPlayingBeforeDrag = player?.timeControlStatus == .playing
         player?.pause()
         isScrubbingPlayback = true
@@ -307,20 +303,16 @@ final class TranscriptionViewModel: ObservableObject {
         highlightedIndex = PlaybackLocator.nearestWordIndex(at: clamped, in: transcript)
 
         guard let player else { return }
-        if isScrubbingPlayback, sourceDuration >= 1800 {
-            queueInteractiveSeek(to: clamped)
-        } else {
-            cancelPendingInteractiveSeek()
-            let time = CMTime(seconds: clamped, preferredTimescale: 600)
-            let tolerance = interactiveSeekTolerance()
-            player.currentItem?.cancelPendingSeeks()
-            player.seek(to: time, toleranceBefore: tolerance, toleranceAfter: tolerance)
-        }
+        guard !isScrubbingPlayback else { return }
+
+        let time = CMTime(seconds: clamped, preferredTimescale: 600)
+        let tolerance = interactiveSeekTolerance()
+        player.currentItem?.cancelPendingSeeks()
+        player.seek(to: time, toleranceBefore: tolerance, toleranceAfter: tolerance)
     }
 
     func endScrubbing() {
         let target = scrubPosition
-        cancelPendingInteractiveSeek()
         isScrubbingPlayback = false
         let shouldResume = scrubWasPlayingBeforeDrag
         scrubWasPlayingBeforeDrag = false
@@ -659,7 +651,6 @@ final class TranscriptionViewModel: ObservableObject {
         currentTime = 0
         sourceDuration = 0
         scrubPosition = 0
-        cancelPendingInteractiveSeek()
         isScrubbingPlayback = false
         scrubWasPlayingBeforeDrag = false
         detachTimeObserver()
@@ -696,40 +687,6 @@ final class TranscriptionViewModel: ObservableObject {
             seconds = 0.15
         }
         return CMTime(seconds: seconds, preferredTimescale: 600)
-    }
-
-    private func queueInteractiveSeek(to seconds: TimeInterval) {
-        cancelPendingInteractiveSeek()
-        let workItem = DispatchWorkItem { [weak self] in
-            guard let self, let player = self.player else { return }
-            let time = CMTime(seconds: seconds, preferredTimescale: 600)
-            let tolerance = self.interactiveSeekTolerance()
-            player.currentItem?.cancelPendingSeeks()
-            player.seek(to: time, toleranceBefore: tolerance, toleranceAfter: tolerance)
-        }
-        interactiveSeekWorkItem = workItem
-        DispatchQueue.main.asyncAfter(
-            deadline: .now() + interactiveSeekDebounceInterval(),
-            execute: workItem
-        )
-    }
-
-    private func cancelPendingInteractiveSeek() {
-        interactiveSeekWorkItem?.cancel()
-        interactiveSeekWorkItem = nil
-    }
-
-    private func interactiveSeekDebounceInterval() -> TimeInterval {
-        if sourceDuration >= 7200 {
-            return 0.60
-        }
-        if sourceDuration >= 3600 {
-            return 0.42
-        }
-        if sourceDuration >= 1800 {
-            return 0.27
-        }
-        return 0.12
     }
 
     private func persistFailureLog(
