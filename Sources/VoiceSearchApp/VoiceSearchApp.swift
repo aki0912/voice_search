@@ -45,7 +45,7 @@ struct VoiceSearchApp: App {
     var body: some Scene {
         WindowGroup("Voice Search") {
             MainView(viewModel: viewModel)
-                .frame(minWidth: 1020, minHeight: 840)
+                .frame(minWidth: 1020, minHeight: 640)
         }
         .windowResizability(.contentSize)
     }

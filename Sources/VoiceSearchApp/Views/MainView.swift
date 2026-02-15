@@ -1,443 +1,69 @@
 import SwiftUI
-import UniformTypeIdentifiers
 import VoiceSearchCore
 
 struct MainView: View {
     @ObservedObject var viewModel: TranscriptionViewModel
-    @State private var newTermCanonical: String = ""
-    @State private var newTermAliases: String = ""
-    @State private var isClearButtonHovered = false
-    @State private var clearTooltipDelayTask: Task<Void, Never>?
-    @FocusState private var focusedField: FocusedField?
-
-    private enum FocusedField: Hashable {
-        case search
-        case canonical
-        case aliases
-    }
 
     var body: some View {
-        GeometryReader { proxy in
-            VStack(spacing: 14) {
-                VStack(spacing: 10) {
-                Text("Voice Search")
-                    .font(.system(size: 26, weight: .bold, design: .rounded))
-                    .multilineTextAlignment(.center)
+        VStack(spacing: 0) {
+            headerBar
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(.bar)
+            Divider()
+            HSplitView {
+                SourcePanelView(viewModel: viewModel)
+                    .frame(minWidth: 340, idealWidth: 420, maxWidth: 500)
+
+                TranscriptPanelView(viewModel: viewModel)
+                    .frame(minWidth: 400, idealWidth: 600)
+            }
+        }
+    }
+
+    // MARK: - Header Bar
+
+    @ViewBuilder
+    private var headerBar: some View {
+        HStack(spacing: 16) {
+            Text("Voice Search")
+                .font(.system(size: 16, weight: .semibold, design: .rounded))
+
+            VStack(spacing: 2) {
+                Text(viewModel.statusText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                     .lineLimit(1)
 
-                Text(viewModel.statusText)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-
-                    VStack(spacing: 6) {
-                        Text("認識方式")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .center)
-                        Picker("", selection: $viewModel.recognitionMode) {
-                            ForEach(TranscriptionViewModel.RecognitionMode.allCases) { mode in
-                                Text(mode.displayLabel).tag(mode)
-                            }
-                        }
-                        .frame(maxWidth: 320)
-                        .labelsHidden()
-                        .pickerStyle(.segmented)
-                        .disabled(viewModel.isAnalyzing)
-                    }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .frame(width: 420)
-                    .background(.thinMaterial)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .frame(maxWidth: .infinity, alignment: .center)
-
                 if viewModel.isAnalyzing {
-                    VStack(spacing: 6) {
-                        ProgressView(value: viewModel.analysisProgress, total: 1.0)
-                            .progressViewStyle(.linear)
-                        Text("解析進捗（推定）: \(Int((viewModel.analysisProgress * 100).rounded()))%")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: 420)
+                    ProgressView(value: viewModel.analysisProgress, total: 1.0)
+                        .progressViewStyle(.linear)
+                        .frame(maxWidth: 240)
                 }
-
-                if let error = viewModel.errorMessage {
-                    Text(error)
-                        .foregroundStyle(.red)
-                        .font(.footnote)
-                }
-
-                if viewModel.sourceURL == nil {
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(viewModel.isDropTargeted ? Color.accentColor : Color.secondary, lineWidth: 2)
-                        .frame(maxWidth: .infinity, minHeight: 94)
-                        .overlay(
-                            VStack {
-                                Image(systemName: "arrow.down.doc")
-                                    .font(.system(size: 24))
-                                Text("ここに音声/動画をドラッグ&ドロップ")
-                                    .font(.subheadline)
-                            }
-                            .foregroundStyle(.secondary)
-                        )
-                        .onDrop(of: [UTType.fileURL, UTType.movie, UTType.audio], isTargeted: $viewModel.isDropTargeted) { providers in
-                            Task {
-                                _ = await viewModel.handleDrop(providers: providers)
-                            }
-                            return true
-                        }
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.horizontal)
-                        .layoutPriority(2)
-                }
-
-                if let url = viewModel.sourceURL {
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack(spacing: 10) {
-                            Image(systemName: "doc.text")
-                                .foregroundStyle(.secondary)
-                            Text(url.lastPathComponent)
-                                .font(.headline)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                            Button(action: {
-                                viewModel.clearLoadedMedia()
-                            }) {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.title3)
-                                    .foregroundStyle(isClearButtonHovered ? Color.red : Color.secondary)
-                            }
-                            .buttonStyle(.plain)
-                            .onHover { hovering in
-                                clearTooltipDelayTask?.cancel()
-
-                                if hovering {
-                                    clearTooltipDelayTask = Task { @MainActor in
-                                        try? await Task.sleep(nanoseconds: 100_000_000)
-                                        guard !Task.isCancelled else { return }
-                                        withAnimation(.easeOut(duration: 0.12)) {
-                                            isClearButtonHovered = true
-                                        }
-                                    }
-                                } else {
-                                    withAnimation(.easeOut(duration: 0.08)) {
-                                        isClearButtonHovered = false
-                                    }
-                                }
-                            }
-                            .overlay(alignment: .topTrailing) {
-                                if isClearButtonHovered {
-                                    Text("ファイルをクリア")
-                                        .font(.caption)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(.ultraThinMaterial)
-                                        .clipShape(Capsule())
-                                        .offset(y: -28)
-                                        .transition(.opacity.combined(with: .scale(scale: 0.9)))
-                                }
-                            }
-                            .help("ファイルをクリアします")
-                            .disabled(viewModel.isAnalyzing)
-                            Spacer(minLength: 0)
-                        }
-
-                        HStack(spacing: 10) {
-                            Button(viewModel.isAnalyzing ? "解析中..." : "再解析") {
-                                Task {
-                                    await viewModel.transcribe(url: url)
-                                }
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .disabled(viewModel.isAnalyzing)
-                            Spacer(minLength: 0)
-                        }
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(.thinMaterial)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .padding(.horizontal)
-                }
-
-                if viewModel.isVideoSource, let playbackPlayer = viewModel.playbackPlayer {
-                    PlayerView(player: playbackPlayer)
-                    .frame(minHeight: 220, maxHeight: 320)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .padding(.horizontal)
-                }
-                }
-
-            if viewModel.playbackPlayer != nil {
-                VStack(spacing: 8) {
-                    HStack {
-                        Spacer()
-                        Button(action: { viewModel.playPause() }) {
-                            Label(
-                                viewModel.isPlaying ? "停止" : "再生",
-                                systemImage: viewModel.isPlaying ? "pause.fill" : "play.fill"
-                            )
-                            .font(viewModel.isVideoSource ? .body : .headline)
-                            .frame(minWidth: viewModel.isVideoSource ? 120 : 170)
-                            .padding(.vertical, viewModel.isVideoSource ? 6 : 10)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(viewModel.isVideoSource ? .regular : .large)
-                        .tint(viewModel.isPlaying ? .orange : .accentColor)
-                        .disabled(viewModel.sourceURL == nil)
-                        Spacer()
-                    }
-
-                    HStack {
-                        Text(viewModel.isPlaying ? "再生中" : "停止中")
-                            .font(.caption)
-                            .foregroundStyle(viewModel.isPlaying ? .green : .secondary)
-                        Spacer()
-                        Text("\(formatTime(viewModel.currentTime))")
-                            .font(.system(.body, design: .monospaced))
-                            .frame(width: 80, alignment: .trailing)
-                    }
-                }
-                .padding(.horizontal)
             }
+            .frame(maxWidth: .infinity)
 
-            if viewModel.playbackPlayer != nil, viewModel.sourceDuration > 0 {
-                HStack(spacing: 10) {
-                    Text(formatTime(viewModel.scrubPosition))
-                        .font(.system(.caption, design: .monospaced))
-                        .frame(width: 58, alignment: .leading)
-
-                    Slider(
-                        value: Binding(
-                            get: { viewModel.scrubPosition },
-                            set: { viewModel.updateScrubPosition($0) }
-                        ),
-                        in: 0...viewModel.sourceDuration,
-                        onEditingChanged: { isEditing in
-                            if isEditing {
-                                viewModel.beginScrubbing()
-                            } else {
-                                viewModel.endScrubbing()
-                            }
-                        }
-                    )
-
-                    Text(formatTime(viewModel.sourceDuration))
-                        .font(.system(.caption, design: .monospaced))
-                        .frame(width: 58, alignment: .trailing)
+            HStack(spacing: 8) {
+                Text("認識方式")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Picker("", selection: $viewModel.recognitionMode) {
+                    ForEach(TranscriptionViewModel.RecognitionMode.allCases) { mode in
+                        Text(mode.displayLabel).tag(mode)
+                    }
                 }
-                .padding(.horizontal)
+                .labelsHidden()
+                .pickerStyle(.segmented)
+                .fixedSize()
             }
-
-            HStack {
-                TextField("検索ワード", text: $viewModel.query)
-                    .textFieldStyle(.roundedBorder)
-                    .focused($focusedField, equals: .search)
-                    .onSubmit {
-                        viewModel.performSearch()
-                    }
-                    .onChange(of: viewModel.query) { _ in
-                        viewModel.performSearch()
-                    }
-
-                Toggle("部分一致", isOn: $viewModel.isContainsMatchMode)
-                    .toggleStyle(.switch)
-                    .onChange(of: viewModel.isContainsMatchMode) { _ in
-                        viewModel.performSearch()
-                    }
-
-                Button("検索") {
-                    viewModel.performSearch()
-                }
-                .disabled(viewModel.query.isEmpty)
-                }
-                .padding(.horizontal)
-
-                if !viewModel.searchHits.isEmpty {
-                    List(viewModel.searchHits) { hit in
-                    Button {
-                        viewModel.jump(to: hit)
-                    } label: {
-                        VStack(alignment: .leading, spacing: 4) {
-                            highlightedContextText(for: hit)
-                                .lineLimit(2)
-
-                            HStack {
-                                Spacer()
-                                Text("\(formatTime(hit.startTime))")
-                                    .font(.system(.caption, design: .monospaced))
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    }
-                    .frame(minHeight: 140)
-                }
-
-                if viewModel.sourceURL != nil {
-                    HStack(spacing: 10) {
-                        Spacer(minLength: 0)
-
-                        Text("TXT改行閾値")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                        TextField(
-                            "0.10",
-                            value: $viewModel.txtPauseLineBreakThreshold,
-                            formatter: Self.thresholdFormatter
-                        )
-                        .textFieldStyle(.roundedBorder)
-                        .controlSize(.large)
-                        .frame(width: 88)
-                        .multilineTextAlignment(.trailing)
-                        .onSubmit {
-                            viewModel.updateTxtPauseLineBreakThreshold(viewModel.txtPauseLineBreakThreshold)
-                        }
-                        .onChange(of: viewModel.txtPauseLineBreakThreshold) { newValue in
-                            viewModel.updateTxtPauseLineBreakThreshold(newValue)
-                        }
-
-                        Text("秒")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                        Button("テキスト出力") {
-                            viewModel.exportTranscriptToFile()
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.large)
-                        .disabled(viewModel.transcript.isEmpty || viewModel.isAnalyzing)
-                    }
-                    .padding(.horizontal)
-                }
-
-                ScrollViewReader { proxy in
-                    List(Array(viewModel.displayTranscript.enumerated()), id: \.element.id) { index, word in
-                    Button {
-                        viewModel.jump(toDisplayWordAt: index)
-                    } label: {
-                        HStack {
-                            Text(formatTime(word.startTime))
-                                .font(.system(.caption, design: .monospaced))
-                                .frame(width: 70, alignment: .leading)
-                            Text(word.text)
-                                .foregroundStyle(.primary)
-                            Spacer()
-                        }
-                        .padding(.vertical, 2)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(index == viewModel.displayHighlightedIndex ? Color.accentColor.opacity(0.18) : Color.clear)
-                        .cornerRadius(6)
-                    }
-                    .id(word.id)
-                    .buttonStyle(.plain)
-                    }
-                    .frame(minHeight: 220)
-                    .onChange(of: viewModel.displayHighlightedIndex) { newIndex in
-                    guard focusedField == nil else { return }
-                    guard let newIndex, viewModel.displayTranscript.indices.contains(newIndex) else { return }
-                    let targetID = viewModel.displayTranscript[newIndex].id
-                    DispatchQueue.main.async {
-                        proxy.scrollTo(targetID, anchor: .center)
-                    }
-                    }
-                }
-
-                Divider()
-
-                VStack(alignment: .leading, spacing: 8) {
-                Text("用語登録（精度向上）")
-                    .font(.headline)
-
-                HStack {
-                    TextField("登録語（例: クラウド）", text: $newTermCanonical)
-                        .textFieldStyle(.roundedBorder)
-                        .focused($focusedField, equals: .canonical)
-                    TextField("同義語（カンマ区切り）", text: $newTermAliases)
-                        .textFieldStyle(.roundedBorder)
-                        .focused($focusedField, equals: .aliases)
-                    Button("追加") {
-                        let added = viewModel.addDictionaryEntry(
-                            canonical: newTermCanonical,
-                            aliasesText: newTermAliases
-                        )
-                        if added {
-                            newTermCanonical = ""
-                            newTermAliases = ""
-                        }
-                    }
-                    .disabled(newTermCanonical.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
-
-                List(viewModel.dictionaryEntries, id: \.canonical) { entry in
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text(entry.canonical)
-                                .font(.headline)
-                            if !entry.aliases.isEmpty {
-                                Text(entry.aliases.joined(separator: ", "))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        Spacer()
-                        Button("削除") {
-                            viewModel.removeDictionaryEntry(entry)
-                        }
-                        .buttonStyle(.bordered)
-                    }
-                }
-                .frame(minHeight: 120)
-                }
-                .padding(.horizontal)
-            }
-            .padding(.top, max(36, proxy.safeAreaInsets.top + 28))
-            .padding(.bottom, 16)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .disabled(viewModel.isAnalyzing)
         }
-    }
-
-    private func formatTime(_ time: TimeInterval) -> String {
-        guard time.isFinite && time >= 0 else { return "--:--" }
-        let totalSeconds = Int(time.rounded())
-        let mins = totalSeconds / 60
-        let secs = totalSeconds % 60
-        return String(format: "%02d:%02d", mins, secs)
-    }
-
-    private func highlightedContextText(for hit: SearchHit) -> Text {
-        let context = viewModel.displayContextText(for: hit)
-        let target = hit.displayText.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard !target.isEmpty,
-              let range = context.range(of: target, options: [.caseInsensitive, .diacriticInsensitive]) else {
-            return Text(context)
-        }
-
-        let prefix = String(context[..<range.lowerBound])
-        let matched = String(context[range])
-        let suffix = String(context[range.upperBound...])
-
-        return Text(prefix)
-        + Text(matched).foregroundColor(.red).fontWeight(.semibold)
-        + Text(suffix)
-    }
-
-    private static var thresholdFormatter: NumberFormatter {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.minimumFractionDigits = 0
-        formatter.maximumFractionDigits = 2
-        return formatter
     }
 }
 
 struct MainView_Previews: PreviewProvider {
     static var previews: some View {
         MainView(viewModel: TranscriptionViewModel())
-            .frame(width: 900, height: 760)
+            .frame(width: 1020, height: 640)
     }
 }
