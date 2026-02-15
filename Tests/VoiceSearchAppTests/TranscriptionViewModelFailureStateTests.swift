@@ -40,6 +40,8 @@ struct TranscriptionViewModelFailureStateTests {
         ]
         viewModel.highlightedIndex = 1
         viewModel.currentTime = 42
+        viewModel.sourceDuration = 120
+        viewModel.scrubPosition = 73
         viewModel.errorMessage = nil
 
         await viewModel.transcribe(url: URL(fileURLWithPath: "/tmp/unsupported_input.txt"))
@@ -48,6 +50,8 @@ struct TranscriptionViewModelFailureStateTests {
         #expect(viewModel.searchHits.isEmpty)
         #expect(viewModel.highlightedIndex == nil)
         #expect(viewModel.currentTime == 0)
+        #expect(viewModel.sourceDuration == 0)
+        #expect(viewModel.scrubPosition == 0)
         #expect(viewModel.isAnalyzing == false)
         #expect(viewModel.statusText.contains("文字起こしに失敗"))
         #expect(viewModel.errorMessage?.contains("文字起こしに失敗") == true)
@@ -70,5 +74,24 @@ struct TranscriptionViewModelFailureStateTests {
         #expect(entry.query == "debug query")
         #expect(entry.containsMatchEnabled == true)
         #expect(viewModel.errorMessage?.contains("ログ: /tmp/voice_search_failure.log") == true)
+    }
+
+    @MainActor
+    @Test
+    func updateScrubPositionClampsWithinSourceDuration() {
+        let viewModel = TranscriptionViewModel()
+        viewModel.sourceDuration = 3600
+
+        viewModel.updateScrubPosition(3900)
+        #expect(viewModel.scrubPosition == 3600)
+        #expect(viewModel.currentTime == 3600)
+
+        viewModel.updateScrubPosition(-12)
+        #expect(viewModel.scrubPosition == 0)
+        #expect(viewModel.currentTime == 0)
+
+        viewModel.updateScrubPosition(.nan)
+        #expect(viewModel.scrubPosition == 0)
+        #expect(viewModel.currentTime == 0)
     }
 }

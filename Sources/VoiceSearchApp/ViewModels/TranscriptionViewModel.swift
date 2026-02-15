@@ -60,7 +60,9 @@ final class TranscriptionViewModel: ObservableObject {
     private var timeObserverToken: Any?
     private var timeObserverPlayer: AVPlayer?
     private var analysisProgressTask: Task<Void, Never>?
+    private var interactiveSeekWorkItem: DispatchWorkItem?
     private var isScrubbingPlayback = false
+    private var scrubWasPlayingBeforeDrag = false
     private let fileDictionaryURL: URL
 
     private enum TranscriptExportFormat: String {
@@ -210,6 +212,9 @@ final class TranscriptionViewModel: ObservableObject {
             }
             currentTime = 0
             scrubPosition = 0
+            cancelPendingInteractiveSeek()
+            isScrubbingPlayback = false
+            scrubWasPlayingBeforeDrag = false
 
             let itemCount = transcript.count
             let modeText = recognitionModeLabel(from: output.diagnostics)
@@ -266,11 +271,15 @@ final class TranscriptionViewModel: ObservableObject {
 
     func seek(to seconds: TimeInterval) {
         guard let player else { return }
+        cancelPendingInteractiveSeek()
         let clampedSeconds = clampedTime(seconds)
         let time = CMTime(seconds: clampedSeconds, preferredTimescale: 600)
-        player.seek(to: time, toleranceBefore: .zero, toleranceAfter: .zero)
+        let tolerance = finalSeekTolerance()
+        player.currentItem?.cancelPendingSeeks()
+        player.seek(to: time, toleranceBefore: tolerance, toleranceAfter: tolerance)
         currentTime = clampedSeconds
         scrubPosition = clampedSeconds
+        highlightedIndex = PlaybackLocator.nearestWordIndex(at: clampedSeconds, in: transcript)
         player.play()
     }
 
@@ -284,6 +293,10 @@ final class TranscriptionViewModel: ObservableObject {
     }
 
     func beginScrubbing() {
+        guard !isScrubbingPlayback else { return }
+        cancelPendingInteractiveSeek()
+        scrubWasPlayingBeforeDrag = player?.timeControlStatus == .playing
+        player?.pause()
         isScrubbingPlayback = true
     }
 
@@ -292,12 +305,38 @@ final class TranscriptionViewModel: ObservableObject {
         scrubPosition = clamped
         currentTime = clamped
         highlightedIndex = PlaybackLocator.nearestWordIndex(at: clamped, in: transcript)
+
+        guard let player else { return }
+        if isScrubbingPlayback, sourceDuration >= 1800 {
+            queueInteractiveSeek(to: clamped)
+        } else {
+            cancelPendingInteractiveSeek()
+            let time = CMTime(seconds: clamped, preferredTimescale: 600)
+            let tolerance = interactiveSeekTolerance()
+            player.currentItem?.cancelPendingSeeks()
+            player.seek(to: time, toleranceBefore: tolerance, toleranceAfter: tolerance)
+        }
     }
 
     func endScrubbing() {
         let target = scrubPosition
+        cancelPendingInteractiveSeek()
         isScrubbingPlayback = false
-        seek(to: target)
+        let shouldResume = scrubWasPlayingBeforeDrag
+        scrubWasPlayingBeforeDrag = false
+
+        guard let player else { return }
+        let clampedSeconds = clampedTime(target)
+        let time = CMTime(seconds: clampedSeconds, preferredTimescale: 600)
+        let tolerance = finalSeekTolerance()
+        player.currentItem?.cancelPendingSeeks()
+        player.seek(to: time, toleranceBefore: tolerance, toleranceAfter: tolerance)
+        currentTime = clampedSeconds
+        scrubPosition = clampedSeconds
+        highlightedIndex = PlaybackLocator.nearestWordIndex(at: clampedSeconds, in: transcript)
+        if shouldResume {
+            player.play()
+        }
     }
 
     func exportTranscriptToFile() {
@@ -346,10 +385,9 @@ final class TranscriptionViewModel: ObservableObject {
                    itemDuration > 0 {
                     self.sourceDuration = itemDuration
                 }
+                guard !self.isScrubbingPlayback else { return }
                 self.currentTime = seconds
-                if !self.isScrubbingPlayback {
-                    self.scrubPosition = self.clampedTime(seconds)
-                }
+                self.scrubPosition = self.clampedTime(seconds)
                 self.highlightedIndex = PlaybackLocator.nearestWordIndex(at: seconds, in: self.transcript)
             }
         }
@@ -621,7 +659,9 @@ final class TranscriptionViewModel: ObservableObject {
         currentTime = 0
         sourceDuration = 0
         scrubPosition = 0
+        cancelPendingInteractiveSeek()
         isScrubbingPlayback = false
+        scrubWasPlayingBeforeDrag = false
         detachTimeObserver()
         player = nil
     }
@@ -632,6 +672,48 @@ final class TranscriptionViewModel: ObservableObject {
             return max(0, value)
         }
         return min(max(0, value), sourceDuration)
+    }
+
+    private func interactiveSeekTolerance() -> CMTime {
+        let seconds: TimeInterval
+        if sourceDuration >= 3600 {
+            seconds = 2.0
+        } else if sourceDuration >= 1200 {
+            seconds = 1.0
+        } else {
+            seconds = 0.35
+        }
+        return CMTime(seconds: seconds, preferredTimescale: 600)
+    }
+
+    private func finalSeekTolerance() -> CMTime {
+        let seconds: TimeInterval
+        if sourceDuration >= 3600 {
+            seconds = 0.75
+        } else if sourceDuration >= 1200 {
+            seconds = 0.4
+        } else {
+            seconds = 0.15
+        }
+        return CMTime(seconds: seconds, preferredTimescale: 600)
+    }
+
+    private func queueInteractiveSeek(to seconds: TimeInterval) {
+        cancelPendingInteractiveSeek()
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self, let player = self.player else { return }
+            let time = CMTime(seconds: seconds, preferredTimescale: 600)
+            let tolerance = self.interactiveSeekTolerance()
+            player.currentItem?.cancelPendingSeeks()
+            player.seek(to: time, toleranceBefore: tolerance, toleranceAfter: tolerance)
+        }
+        interactiveSeekWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.04, execute: workItem)
+    }
+
+    private func cancelPendingInteractiveSeek() {
+        interactiveSeekWorkItem?.cancel()
+        interactiveSeekWorkItem = nil
     }
 
     private func persistFailureLog(
