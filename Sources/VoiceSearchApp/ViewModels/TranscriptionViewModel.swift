@@ -721,15 +721,15 @@ final class TranscriptionViewModel: ObservableObject {
 
     private func interactiveSeekDebounceInterval() -> TimeInterval {
         if sourceDuration >= 7200 {
-            return 0.20
+            return 0.60
         }
         if sourceDuration >= 3600 {
-            return 0.14
+            return 0.42
         }
         if sourceDuration >= 1800 {
-            return 0.09
+            return 0.27
         }
-        return 0.04
+        return 0.12
     }
 
     private func persistFailureLog(
