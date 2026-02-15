@@ -708,12 +708,28 @@ final class TranscriptionViewModel: ObservableObject {
             player.seek(to: time, toleranceBefore: tolerance, toleranceAfter: tolerance)
         }
         interactiveSeekWorkItem = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.04, execute: workItem)
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + interactiveSeekDebounceInterval(),
+            execute: workItem
+        )
     }
 
     private func cancelPendingInteractiveSeek() {
         interactiveSeekWorkItem?.cancel()
         interactiveSeekWorkItem = nil
+    }
+
+    private func interactiveSeekDebounceInterval() -> TimeInterval {
+        if sourceDuration >= 7200 {
+            return 0.20
+        }
+        if sourceDuration >= 3600 {
+            return 0.14
+        }
+        if sourceDuration >= 1800 {
+            return 0.09
+        }
+        return 0.04
     }
 
     private func persistFailureLog(
