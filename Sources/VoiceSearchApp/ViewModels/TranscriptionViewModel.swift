@@ -35,6 +35,8 @@ final class TranscriptionViewModel: ObservableObject {
     @Published var searchHits: [SearchHit] = []
     @Published var highlightedIndex: Int? = nil
     @Published var currentTime: TimeInterval = 0
+    @Published var sourceDuration: TimeInterval = 0
+    @Published var scrubPosition: TimeInterval = 0
     @Published var isDropTargeted = false
     @Published var dictionaryEntries: [UserDictionaryEntry] = []
     @Published var errorMessage: String?
@@ -58,6 +60,7 @@ final class TranscriptionViewModel: ObservableObject {
     private var timeObserverToken: Any?
     private var timeObserverPlayer: AVPlayer?
     private var analysisProgressTask: Task<Void, Never>?
+    private var isScrubbingPlayback = false
     private let fileDictionaryURL: URL
 
     private enum TranscriptExportFormat: String {
@@ -201,6 +204,12 @@ final class TranscriptionViewModel: ObservableObject {
 
             detachTimeObserver()
             player = AVPlayer(url: url)
+            sourceDuration = output.duration ?? 0
+            if !sourceDuration.isFinite || sourceDuration < 0 {
+                sourceDuration = 0
+            }
+            currentTime = 0
+            scrubPosition = 0
 
             let itemCount = transcript.count
             let modeText = recognitionModeLabel(from: output.diagnostics)
@@ -257,8 +266,11 @@ final class TranscriptionViewModel: ObservableObject {
 
     func seek(to seconds: TimeInterval) {
         guard let player else { return }
-        let time = CMTime(seconds: seconds, preferredTimescale: 600)
+        let clampedSeconds = clampedTime(seconds)
+        let time = CMTime(seconds: clampedSeconds, preferredTimescale: 600)
         player.seek(to: time, toleranceBefore: .zero, toleranceAfter: .zero)
+        currentTime = clampedSeconds
+        scrubPosition = clampedSeconds
         player.play()
     }
 
@@ -269,6 +281,23 @@ final class TranscriptionViewModel: ObservableObject {
         } else {
             player.play()
         }
+    }
+
+    func beginScrubbing() {
+        isScrubbingPlayback = true
+    }
+
+    func updateScrubPosition(_ value: TimeInterval) {
+        let clamped = clampedTime(value)
+        scrubPosition = clamped
+        currentTime = clamped
+        highlightedIndex = PlaybackLocator.nearestWordIndex(at: clamped, in: transcript)
+    }
+
+    func endScrubbing() {
+        let target = scrubPosition
+        isScrubbingPlayback = false
+        seek(to: target)
     }
 
     func exportTranscriptToFile() {
@@ -312,7 +341,15 @@ final class TranscriptionViewModel: ObservableObject {
             let seconds = time.seconds
             Task { @MainActor [weak self] in
                 guard let self else { return }
+                if let itemDuration = player.currentItem?.duration.seconds,
+                   itemDuration.isFinite,
+                   itemDuration > 0 {
+                    self.sourceDuration = itemDuration
+                }
                 self.currentTime = seconds
+                if !self.isScrubbingPlayback {
+                    self.scrubPosition = self.clampedTime(seconds)
+                }
                 self.highlightedIndex = PlaybackLocator.nearestWordIndex(at: seconds, in: self.transcript)
             }
         }
@@ -582,8 +619,19 @@ final class TranscriptionViewModel: ObservableObject {
         searchHits = []
         highlightedIndex = nil
         currentTime = 0
+        sourceDuration = 0
+        scrubPosition = 0
+        isScrubbingPlayback = false
         detachTimeObserver()
         player = nil
+    }
+
+    private func clampedTime(_ value: TimeInterval) -> TimeInterval {
+        guard value.isFinite else { return 0 }
+        guard sourceDuration.isFinite, sourceDuration > 0 else {
+            return max(0, value)
+        }
+        return min(max(0, value), sourceDuration)
     }
 
     private func persistFailureLog(

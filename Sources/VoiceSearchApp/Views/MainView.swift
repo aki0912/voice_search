@@ -113,7 +113,7 @@ struct MainView: View {
                     .padding(.horizontal)
                 }
 
-                HStack {
+            HStack {
                 Button(action: { viewModel.playPause() }) {
                     Image(systemName: "playpause.fill")
                 }
@@ -129,10 +129,38 @@ struct MainView: View {
                 .disabled(viewModel.transcript.isEmpty || viewModel.isAnalyzing)
 
                 Spacer()
+            }
+            .padding(.horizontal)
+
+            if viewModel.playbackPlayer != nil, viewModel.sourceDuration > 0 {
+                HStack(spacing: 10) {
+                    Text(formatTime(viewModel.scrubPosition))
+                        .font(.system(.caption, design: .monospaced))
+                        .frame(width: 58, alignment: .leading)
+
+                    Slider(
+                        value: Binding(
+                            get: { viewModel.scrubPosition },
+                            set: { viewModel.updateScrubPosition($0) }
+                        ),
+                        in: 0...viewModel.sourceDuration,
+                        onEditingChanged: { isEditing in
+                            if isEditing {
+                                viewModel.beginScrubbing()
+                            } else {
+                                viewModel.endScrubbing()
+                            }
+                        }
+                    )
+
+                    Text(formatTime(viewModel.sourceDuration))
+                        .font(.system(.caption, design: .monospaced))
+                        .frame(width: 58, alignment: .trailing)
                 }
                 .padding(.horizontal)
+            }
 
-                HStack {
+            HStack {
                 TextField("検索ワード", text: $viewModel.query)
                     .textFieldStyle(.roundedBorder)
                     .focused($focusedField, equals: .search)
