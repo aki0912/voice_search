@@ -29,8 +29,18 @@ public struct DefaultTokenNormalizer: TokenNormalizing {
                 ? Character(scalar)
                 : " "
         })
+        let kanaUnified = String(stripped.unicodeScalars.map { scalar -> Character in
+            let mappedScalar: UnicodeScalar
+            switch scalar.value {
+            case 0x3041...0x3096, 0x309D...0x309E:
+                mappedScalar = UnicodeScalar(scalar.value + 0x60) ?? scalar
+            default:
+                mappedScalar = scalar
+            }
+            return Character(mappedScalar)
+        })
 
-        return stripped
+        return kanaUnified
             .split(whereSeparator: { $0.isWhitespace })
             .joined(separator: " ")
     }

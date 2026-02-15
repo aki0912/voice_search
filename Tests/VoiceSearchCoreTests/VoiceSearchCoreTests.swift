@@ -91,6 +91,34 @@ struct TranscriptSearchServiceTests {
     }
 
     @Test
+    func hiraganaQueryMatchesKatakanaWord() throws {
+        let words = [
+            TranscriptWord(text: "コーデックス", startTime: 0, endTime: 0.8)
+        ]
+
+        let service = TranscriptSearchService()
+        let results = service.search(words: words, query: "こーでっくす")
+
+        #expect(results.count == 1)
+        let hit = try #require(results.first)
+        #expect(hit.displayText == "コーデックス")
+    }
+
+    @Test
+    func katakanaQueryMatchesHiraganaWord() throws {
+        let words = [
+            TranscriptWord(text: "おはようございます", startTime: 0, endTime: 1.2)
+        ]
+
+        let service = TranscriptSearchService()
+        let results = service.search(words: words, query: "オハヨウゴザイマス")
+
+        #expect(results.count == 1)
+        let hit = try #require(results.first)
+        #expect(hit.displayText == "おはようございます")
+    }
+
+    @Test
     func nearestWordIndexFindsClosestWord() throws {
         let words = [
             TranscriptWord(text: "a", startTime: 0.0, endTime: 1.0),
