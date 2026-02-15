@@ -59,86 +59,126 @@ public final class SpeechAnalyzerTranscriptionService: NSObject, @unchecked Send
             throw SpeechAnalyzerTranscriptionError.unsupportedLocale(locale.identifier)
         }
 
-        for reservedLocale in await AssetInventory.reservedLocales {
-            await AssetInventory.release(reservedLocale: reservedLocale)
-        }
-        try await AssetInventory.reserve(locale: locale)
-
-        let transcriber = SpeechTranscriber(
-            locale: locale,
-            transcriptionOptions: [],
-            reportingOptions: [],
-            attributeOptions: [.audioTimeRange]
-        )
-        let modules: [any SpeechModule] = [transcriber]
-
-        let installedLocales = await SpeechTranscriber.installedLocales
-        if !installedLocales.contains(where: { $0.identifier(.bcp47) == locale.identifier(.bcp47) }) {
-            do {
-                if let installRequest = try await AssetInventory.assetInstallationRequest(supporting: modules) {
-                    try await installRequest.downloadAndInstall()
-                }
-            } catch {
-                throw SpeechAnalyzerTranscriptionError.assetInstallFailed(error.localizedDescription)
-            }
-        }
-
-        let audioFile: AVAudioFile
-        do {
-            audioFile = try AVAudioFile(forReading: request.sourceURL)
-        } catch {
-            throw SpeechAnalyzerTranscriptionError.invalidInput("音声ファイルを開けませんでした: \(error.localizedDescription)")
-        }
-
-        let duration = Double(audioFile.length) / audioFile.processingFormat.sampleRate
-
-        let analyzer = SpeechAnalyzer(modules: modules)
-        do {
-            try await analyzer.start(inputAudioFile: audioFile, finishAfterFile: true)
-        } catch {
-            throw SpeechAnalyzerTranscriptionError.invalidInput("SpeechAnalyzer の開始に失敗: \(error.localizedDescription)")
-        }
-
-        var transcript = AttributedString()
-        var finalizationTime: TimeInterval = 0
-        for try await result in transcriber.results {
-            transcript += result.text
-            finalizationTime = max(finalizationTime, result.resultsFinalizationTime.seconds)
-
-            if duration.isFinite, duration > 0 {
-                let progress = max(0.01, min(0.99, result.resultsFinalizationTime.seconds / duration))
-                request.progressHandler?(
-                    TranscriptionProgress(
-                        fractionCompleted: progress,
-                        recognizedDuration: result.resultsFinalizationTime.seconds,
-                        totalDuration: duration
-                    )
-                )
-            }
-        }
-
-        request.progressHandler?(
-            TranscriptionProgress(
-                fractionCompleted: 1,
-                recognizedDuration: duration.isFinite ? duration : finalizationTime,
-                totalDuration: duration.isFinite ? duration : nil
+        return try await withReservedLocale(locale) {
+            let transcriber = SpeechTranscriber(
+                locale: locale,
+                transcriptionOptions: [],
+                reportingOptions: [],
+                attributeOptions: [.audioTimeRange]
             )
-        )
+            let modules: [any SpeechModule] = [transcriber]
 
-        let words = transcript.transcriptWords()
+            let installedLocales = await SpeechTranscriber.installedLocales
+            if !installedLocales.contains(where: { $0.identifier(.bcp47) == locale.identifier(.bcp47) }) {
+                do {
+                    if let installRequest = try await AssetInventory.assetInstallationRequest(supporting: modules) {
+                        try await installRequest.downloadAndInstall()
+                    }
+                } catch {
+                    throw SpeechAnalyzerTranscriptionError.assetInstallFailed(error.localizedDescription)
+                }
+            }
 
-        return TranscriptionOutput(
-            sourceURL: request.sourceURL,
-            words: words,
-            locale: locale,
-            duration: duration.isFinite ? duration : nil,
-            diagnostics: [
-                "recognitionMode: onDeviceSpeechAnalyzer",
-                "speechAnalyzerLocale: \(locale.identifier)",
-                "speechAnalyzerFinalizationTimeSeconds: \(finalizationTime)",
-                "segments: \(words.count)",
-            ]
-        )
+            let preparedInput: PreparedAudioInput
+            do {
+                preparedInput = try await AudioInputPreparer.prepare(from: request.sourceURL)
+            } catch let error as AudioInputPreparationError {
+                throw SpeechAnalyzerTranscriptionError.invalidInput(error.localizedDescription)
+            } catch {
+                throw SpeechAnalyzerTranscriptionError.invalidInput(error.localizedDescription)
+            }
+            defer {
+                if let cleanupURL = preparedInput.cleanupURL {
+                    try? FileManager.default.removeItem(at: cleanupURL)
+                }
+            }
+
+            let audioFile: AVAudioFile
+            do {
+                audioFile = try AVAudioFile(forReading: preparedInput.url)
+            } catch {
+                throw SpeechAnalyzerTranscriptionError.invalidInput("音声ファイルを開けませんでした: \(error.localizedDescription)")
+            }
+
+            let duration = Double(audioFile.length) / audioFile.processingFormat.sampleRate
+
+            let analyzer = SpeechAnalyzer(modules: modules)
+            do {
+                try await analyzer.start(inputAudioFile: audioFile, finishAfterFile: true)
+            } catch {
+                throw SpeechAnalyzerTranscriptionError.invalidInput("SpeechAnalyzer の開始に失敗: \(error.localizedDescription)")
+            }
+
+            var transcript = AttributedString()
+            var finalizationTime: TimeInterval = 0
+            for try await result in transcriber.results {
+                transcript += result.text
+                finalizationTime = max(finalizationTime, result.resultsFinalizationTime.seconds)
+
+                if duration.isFinite, duration > 0 {
+                    let progress = max(0.01, min(0.99, result.resultsFinalizationTime.seconds / duration))
+                    request.progressHandler?(
+                        TranscriptionProgress(
+                            fractionCompleted: progress,
+                            recognizedDuration: result.resultsFinalizationTime.seconds,
+                            totalDuration: duration
+                        )
+                    )
+                }
+            }
+
+            request.progressHandler?(
+                TranscriptionProgress(
+                    fractionCompleted: 1,
+                    recognizedDuration: duration.isFinite ? duration : finalizationTime,
+                    totalDuration: duration.isFinite ? duration : nil
+                )
+            )
+
+            let words = transcript.transcriptWords()
+
+            return TranscriptionOutput(
+                sourceURL: request.sourceURL,
+                words: words,
+                locale: locale,
+                duration: duration.isFinite ? duration : nil,
+                diagnostics: [
+                    "recognitionMode: onDeviceSpeechAnalyzer",
+                    "speechAnalyzerLocale: \(locale.identifier)",
+                    "speechAnalyzerFinalizationTimeSeconds: \(finalizationTime)",
+                    "segments: \(words.count)",
+                    "recognitionInputExtension: \(preparedInput.url.pathExtension.lowercased())",
+                ]
+            )
+        }
+    }
+
+    @available(macOS 26.0, *)
+    private func withReservedLocale<T>(
+        _ locale: Locale,
+        operation: () async throws -> T
+    ) async throws -> T {
+        let localeTag = locale.identifier(.bcp47)
+        let isAlreadyReserved = await AssetInventory.reservedLocales.contains {
+            $0.identifier(.bcp47) == localeTag
+        }
+
+        if !isAlreadyReserved {
+            try await AssetInventory.reserve(locale: locale)
+        }
+
+        do {
+            let value = try await operation()
+            if !isAlreadyReserved {
+                await AssetInventory.release(reservedLocale: locale)
+            }
+            return value
+        } catch {
+            if !isAlreadyReserved {
+                await AssetInventory.release(reservedLocale: locale)
+            }
+            throw error
+        }
     }
 }
 

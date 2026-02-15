@@ -4,6 +4,7 @@
 import PackageDescription
 
 let voiceSearchCLIInfoPlistPath = "AppResources/CLIInfo.plist"
+let voiceSearchAppInfoPlistPath = "AppResources/Info.plist"
 
 let package = Package(
     name: "VoiceSearchCore",
@@ -41,6 +42,12 @@ let package = Package(
             exclude: ["Services"],
             linkerSettings: [
                 .linkedFramework("AVKit"),
+                .unsafeFlags([
+                    "-Xlinker", "-sectcreate",
+                    "-Xlinker", "__TEXT",
+                    "-Xlinker", "__info_plist",
+                    "-Xlinker", voiceSearchAppInfoPlistPath,
+                ]),
             ]
         ),
         .executableTarget(

@@ -50,6 +50,7 @@ final class TranscriptionViewModel: ObservableObject {
     private let pipeline: TranscriptionPipeline
     private let normalizer = DefaultTokenNormalizer()
     private let options = SearchOptions()
+    private let failureMessageFormatter = TranscriptionFailureMessageFormatter()
 
     private var rawTranscript: [TranscriptWord] = []
     private var player: AVPlayer?
@@ -63,6 +64,14 @@ final class TranscriptionViewModel: ObservableObject {
         case srt
 
         var suggestedExtension: String { rawValue }
+    }
+
+    private struct FailingTranscriptionService: TranscriptionService {
+        let message: String
+
+        func transcribe(request: TranscriptionRequest) async throws -> TranscriptionOutput {
+            throw TranscriptionServiceError.invalidInput(message)
+        }
     }
 
     init(
@@ -201,11 +210,15 @@ final class TranscriptionViewModel: ObservableObject {
             startTimeObservation()
             didSucceed = true
         } catch {
-            errorMessage = error.localizedDescription
-            statusText = "文字起こしに失敗"
+            errorMessage = formattedFailureMessage(for: error, mode: recognitionMode)
+            statusText = "文字起こしに失敗（\(recognitionMode.displayLabel)）"
             rawTranscript = []
             transcript = []
             searchHits = []
+            detachTimeObserver()
+            player = nil
+            highlightedIndex = nil
+            currentTime = 0
         }
     }
 
@@ -547,6 +560,10 @@ final class TranscriptionViewModel: ObservableObject {
         }
     }
 
+    private func formattedFailureMessage(for error: Error, mode: RecognitionMode) -> String {
+        failureMessageFormatter.format(modeLabel: mode.displayLabel, error: error)
+    }
+
     private func buildTranscriptionService(for mode: RecognitionMode) -> any TranscriptionService {
         switch mode {
         case .server:
@@ -555,7 +572,9 @@ final class TranscriptionViewModel: ObservableObject {
             if SpeechAnalyzerTranscriptionService.isAvailable {
                 return SpeechAnalyzerTranscriptionService()
             }
-            return SpeechURLTranscriptionService(recognitionStrategy: .onDeviceOnly)
+            return FailingTranscriptionService(
+                message: "オンデバイス認識エンジン（SpeechAnalyzer）がこの環境で利用できません。サーバー方式を選択するか、対応OSで実行してください。"
+            )
         }
     }
 }

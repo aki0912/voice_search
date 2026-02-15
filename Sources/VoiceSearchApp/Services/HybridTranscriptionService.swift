@@ -22,16 +22,10 @@ public final class HybridTranscriptionService: NSObject, @unchecked Sendable, Tr
         switch mode {
         case .speechOnly:
             return try await legacy.transcribe(request: request)
-        case .speechAnalyzerFirst:
-            if SpeechAnalyzerTranscriptionService.isAvailable {
-                do {
-                    return try await analyzer.transcribe(request: request)
-                } catch {
-                    return try await legacy.transcribe(request: request)
-                }
+        case .speechAnalyzerFirst, .speechAnalyzerOnly:
+            guard SpeechAnalyzerTranscriptionService.isAvailable else {
+                throw SpeechAnalyzerTranscriptionError.unavailable
             }
-            return try await legacy.transcribe(request: request)
-        case .speechAnalyzerOnly:
             return try await analyzer.transcribe(request: request)
         }
     }
