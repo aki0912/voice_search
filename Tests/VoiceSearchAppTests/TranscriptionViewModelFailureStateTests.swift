@@ -3,6 +3,20 @@ import Testing
 @testable import VoiceSearchApp
 @testable import VoiceSearchCore
 
+private final class StubFailureLogWriter: TranscriptionFailureLogWriting {
+    private(set) var entries: [TranscriptionFailureLogEntry] = []
+    let returnedURL: URL
+
+    init(returnedURL: URL) {
+        self.returnedURL = returnedURL
+    }
+
+    func write(_ entry: TranscriptionFailureLogEntry) throws -> URL {
+        entries.append(entry)
+        return returnedURL
+    }
+}
+
 @Suite
 struct TranscriptionViewModelFailureStateTests {
     @MainActor
@@ -37,5 +51,24 @@ struct TranscriptionViewModelFailureStateTests {
         #expect(viewModel.isAnalyzing == false)
         #expect(viewModel.statusText.contains("文字起こしに失敗"))
         #expect(viewModel.errorMessage?.contains("文字起こしに失敗") == true)
+    }
+
+    @MainActor
+    @Test
+    func transcribeFailurePersistsFailureLogAndShowsPath() async {
+        let expectedLogURL = URL(fileURLWithPath: "/tmp/voice_search_failure.log")
+        let logger = StubFailureLogWriter(returnedURL: expectedLogURL)
+        let viewModel = TranscriptionViewModel(failureLogWriter: logger)
+        viewModel.query = "debug query"
+        viewModel.isContainsMatchMode = true
+
+        await viewModel.transcribe(url: URL(fileURLWithPath: "/tmp/unsupported_input.txt"))
+
+        #expect(logger.entries.count == 1)
+        let entry = logger.entries[0]
+        #expect(entry.sourceURL.path == "/tmp/unsupported_input.txt")
+        #expect(entry.query == "debug query")
+        #expect(entry.containsMatchEnabled == true)
+        #expect(viewModel.errorMessage?.contains("ログ: /tmp/voice_search_failure.log") == true)
     }
 }

@@ -34,6 +34,12 @@ public final class SpeechURLTranscriptionService: NSObject, @unchecked Sendable,
     private let recognitionStrategy: RecognitionStrategy
     private let allowAuthorizationPrompt: Bool
 
+    enum AuthorizationDecision: Equatable, Sendable {
+        case proceed
+        case reject
+        case requestPrompt
+    }
+
     public init(
         recognitionStrategy: RecognitionStrategy = .onDeviceOnly,
         allowAuthorizationPrompt: Bool = true
@@ -199,34 +205,46 @@ public final class SpeechURLTranscriptionService: NSObject, @unchecked Sendable,
         return max(0.01, min(0.98, raw * 0.98))
     }
 
+    static func authorizationDecision(
+        status: SFSpeechRecognizerAuthorizationStatus,
+        allowAuthorizationPrompt: Bool,
+        canRequestAuthorizationPrompt: Bool
+    ) -> AuthorizationDecision {
+        switch status {
+        case .authorized:
+            return .proceed
+        case .denied, .restricted:
+            return .reject
+        case .notDetermined:
+            return (allowAuthorizationPrompt && canRequestAuthorizationPrompt) ? .requestPrompt : .reject
+        @unknown default:
+            return .reject
+        }
+    }
+
     private func requestAuthorizationIfNeeded() async throws {
         let status = SFSpeechRecognizer.authorizationStatus()
-        if status == .authorized { return }
-        if status == .denied || status == .restricted {
-            throw SpeechURLTranscriptionServiceError.notAuthorized
-        }
-
-        guard status == .notDetermined else {
+        let canRequestAuthorizationPrompt = Bundle.main.bundleURL.pathExtension == "app"
+        switch Self.authorizationDecision(
+            status: status,
+            allowAuthorizationPrompt: allowAuthorizationPrompt,
+            canRequestAuthorizationPrompt: canRequestAuthorizationPrompt
+        ) {
+        case .proceed:
             return
-        }
-
-        guard allowAuthorizationPrompt else {
+        case .reject:
             throw SpeechURLTranscriptionServiceError.notAuthorized
-        }
-
-        let isAppBundle = Bundle.main.bundleURL.pathExtension == "app"
-        guard isAppBundle else { return }
-
-        let nextStatus = await withCheckedContinuation { continuation in
-            SFSpeechRecognizer.requestAuthorization { continuation.resume(returning: $0) }
-        }
-        guard nextStatus == .authorized else {
-            throw SpeechURLTranscriptionServiceError.notAuthorized
+        case .requestPrompt:
+            let nextStatus = await withCheckedContinuation { continuation in
+                SFSpeechRecognizer.requestAuthorization { continuation.resume(returning: $0) }
+            }
+            guard nextStatus == .authorized else {
+                throw SpeechURLTranscriptionServiceError.notAuthorized
+            }
         }
     }
 
     private func ensureSpeechRecognitionUsageDescription() throws {
-        guard Bundle.main.bundleURL.pathExtension == "app" else { return }
         let key = "NSSpeechRecognitionUsageDescription"
         let usage = Bundle.main.object(forInfoDictionaryKey: key) as? String
         let normalized = usage?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""

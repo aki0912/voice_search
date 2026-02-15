@@ -27,12 +27,14 @@ private struct CLIOptions {
     let outputURL: URL
     let mode: RunMode
     let locale: Locale?
+    let allowAuthorizationPrompt: Bool
 
     static func parse(arguments: [String]) throws -> CLIOptions {
         var inputPath: String?
         var outputPath: String?
         var mode: RunMode = .diagnose
         var localeIdentifier: String?
+        var allowAuthorizationPrompt = false
 
         var index = 1
         while index < arguments.count {
@@ -67,6 +69,8 @@ private struct CLIOptions {
                     throw CLIError.usage("--locale の値がありません\n\n" + Self.usageText())
                 }
                 localeIdentifier = arguments[index]
+            case "--allow-auth-prompt":
+                allowAuthorizationPrompt = true
             default:
                 throw CLIError.usage("不明な引数です: \(arg)\n\n" + Self.usageText())
             }
@@ -96,18 +100,20 @@ private struct CLIOptions {
             inputURL: inputURL,
             outputURL: outputURL,
             mode: mode,
-            locale: localeIdentifier.map(Locale.init(identifier:))
+            locale: localeIdentifier.map(Locale.init(identifier:)),
+            allowAuthorizationPrompt: allowAuthorizationPrompt
         )
     }
 
     static func usageText() -> String {
         """
         Usage:
-          swift run VoiceSearchCLI --input <audio-file> [--output <report-file>] [--mode diagnose|on-device|server] [--locale ja-JP]
+          swift run VoiceSearchCLI --input <audio-file> [--output <report-file>] [--mode diagnose|on-device|server] [--locale ja-JP] [--allow-auth-prompt]
 
         Examples:
           swift run VoiceSearchCLI --input sample2.m4a --mode diagnose
           swift run VoiceSearchCLI --input sample2.m4a --mode on-device --output sample2_ondevice.txt
+          swift run VoiceSearchCLI --input sample2.m4a --mode server --allow-auth-prompt
         """
     }
 }
@@ -187,7 +193,7 @@ struct VoiceSearchCLI {
         } else {
             service = SpeechURLTranscriptionService(
                 recognitionStrategy: strategy,
-                allowAuthorizationPrompt: false
+                allowAuthorizationPrompt: options.allowAuthorizationPrompt
             )
         }
         let request = TranscriptionRequest(

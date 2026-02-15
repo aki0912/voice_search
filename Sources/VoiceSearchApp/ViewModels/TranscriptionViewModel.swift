@@ -51,6 +51,7 @@ final class TranscriptionViewModel: ObservableObject {
     private let normalizer = DefaultTokenNormalizer()
     private let options = SearchOptions()
     private let failureMessageFormatter = TranscriptionFailureMessageFormatter()
+    private let failureLogWriter: any TranscriptionFailureLogWriting
 
     private var rawTranscript: [TranscriptWord] = []
     private var player: AVPlayer?
@@ -75,14 +76,22 @@ final class TranscriptionViewModel: ObservableObject {
     }
 
     init(
-        pipeline: TranscriptionPipeline = TranscriptionPipeline()
+        pipeline: TranscriptionPipeline = TranscriptionPipeline(),
+        appSupportDirectory: URL? = nil,
+        failureLogWriter: (any TranscriptionFailureLogWriting)? = nil
     ) {
         self.pipeline = pipeline
 
-        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+        let support = appSupportDirectory
+            ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? FileManager.default.temporaryDirectory
-        fileDictionaryURL = support.appendingPathComponent("voice_search", isDirectory: true)
+        let appDirectoryURL = support.appendingPathComponent("voice_search", isDirectory: true)
+        fileDictionaryURL = appDirectoryURL
             .appendingPathComponent("dictionary.json")
+        self.failureLogWriter = failureLogWriter
+            ?? FileTranscriptionFailureLogWriter(
+                directoryURL: appDirectoryURL.appendingPathComponent("failure_logs", isDirectory: true)
+            )
 
         do {
             try FileManager.default.createDirectory(at: fileDictionaryURL.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -211,7 +220,16 @@ final class TranscriptionViewModel: ObservableObject {
             didSucceed = true
         } catch {
             resetUIStateAfterTranscriptionFailure()
-            errorMessage = formattedFailureMessage(for: error, mode: recognitionMode)
+            let formattedMessage = formattedFailureMessage(for: error, mode: recognitionMode)
+            let failureLogURL = persistFailureLog(
+                error: error,
+                sourceURL: url,
+                formattedMessage: formattedMessage
+            )
+            errorMessage = failureMessageWithLogPath(
+                formattedMessage: formattedMessage,
+                failureLogURL: failureLogURL
+            )
             statusText = "文字起こしに失敗（\(recognitionMode.displayLabel)）"
         }
     }
@@ -566,6 +584,35 @@ final class TranscriptionViewModel: ObservableObject {
         currentTime = 0
         detachTimeObserver()
         player = nil
+    }
+
+    private func persistFailureLog(
+        error: Error,
+        sourceURL: URL,
+        formattedMessage: String
+    ) -> URL? {
+        let entry = TranscriptionFailureLogEntry(
+            occurredAt: Date(),
+            recognitionMode: recognitionMode.displayLabel,
+            sourceURL: sourceURL,
+            statusText: statusText,
+            query: query,
+            containsMatchEnabled: isContainsMatchMode,
+            pendingQueue: queue,
+            errorType: String(reflecting: type(of: error)),
+            errorDescription: error.localizedDescription,
+            formattedMessage: formattedMessage
+        )
+
+        return try? failureLogWriter.write(entry)
+    }
+
+    private func failureMessageWithLogPath(
+        formattedMessage: String,
+        failureLogURL: URL?
+    ) -> String {
+        guard let failureLogURL else { return formattedMessage }
+        return "\(formattedMessage)\nログ: \(failureLogURL.path)"
     }
 
     private func buildTranscriptionService(for mode: RecognitionMode) -> any TranscriptionService {
