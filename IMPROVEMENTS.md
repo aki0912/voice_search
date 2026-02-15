@@ -22,7 +22,9 @@
 ## 優先度低（UX改善）
 - [x] 解析失敗時のエラー表示をさらに構造化。
   - `TranscriptionFailureMessageFormatter` を導入し、「失敗要因」「対処方法（設定/権限/形式）」を分けて表示。
-- [ ] 失敗時の UI リセット（再生状態・ハイライト）を一貫化。
+- [x] 失敗時の UI リセット（再生状態・ハイライト）を一貫化。
+  - `TranscriptionViewModel.resetUIStateAfterTranscriptionFailure()` に集約。
+  - `VoiceSearchAppTests` に失敗時状態クリアの回帰テストを追加。
 
 ## 今回反映済み
 - [x] `HybridTranscriptionService` の暗黙フォールバックを廃止。

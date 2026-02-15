@@ -70,5 +70,9 @@ let package = Package(
             name: "VoiceSearchServicesTests",
             dependencies: ["VoiceSearchServices", "VoiceSearchCore"]
         ),
+        .testTarget(
+            name: "VoiceSearchAppTests",
+            dependencies: ["VoiceSearchApp", "VoiceSearchCore"]
+        ),
     ]
 )

@@ -210,15 +210,9 @@ final class TranscriptionViewModel: ObservableObject {
             startTimeObservation()
             didSucceed = true
         } catch {
+            resetUIStateAfterTranscriptionFailure()
             errorMessage = formattedFailureMessage(for: error, mode: recognitionMode)
             statusText = "文字起こしに失敗（\(recognitionMode.displayLabel)）"
-            rawTranscript = []
-            transcript = []
-            searchHits = []
-            detachTimeObserver()
-            player = nil
-            highlightedIndex = nil
-            currentTime = 0
         }
     }
 
@@ -562,6 +556,16 @@ final class TranscriptionViewModel: ObservableObject {
 
     private func formattedFailureMessage(for error: Error, mode: RecognitionMode) -> String {
         failureMessageFormatter.format(modeLabel: mode.displayLabel, error: error)
+    }
+
+    private func resetUIStateAfterTranscriptionFailure() {
+        rawTranscript = []
+        transcript = []
+        searchHits = []
+        highlightedIndex = nil
+        currentTime = 0
+        detachTimeObserver()
+        player = nil
     }
 
     private func buildTranscriptionService(for mode: RecognitionMode) -> any TranscriptionService {
