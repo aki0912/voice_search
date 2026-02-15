@@ -78,6 +78,27 @@ struct TranscriptionViewModelFailureStateTests {
 
     @MainActor
     @Test
+    func displayContextTextReturnsNearestDisplayTranscriptLine() {
+        let viewModel = TranscriptionViewModel()
+        viewModel.displayTranscript = [
+            TranscriptWord(text: "おはようございます", startTime: 0.0, endTime: 1.0),
+            TranscriptWord(text: "本日の議題です", startTime: 2.0, endTime: 3.0),
+        ]
+
+        let hit = SearchHit(
+            startIndex: 3,
+            endIndex: 3,
+            startTime: 2.4,
+            endTime: 2.8,
+            matchedText: "議題",
+            displayText: "議題"
+        )
+
+        #expect(viewModel.displayContextText(for: hit) == "本日の議題です")
+    }
+
+    @MainActor
+    @Test
     func updateScrubPositionClampsWithinSourceDuration() {
         let viewModel = TranscriptionViewModel()
         viewModel.sourceDuration = 3600

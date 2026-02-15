@@ -276,6 +276,21 @@ final class TranscriptionViewModel: ObservableObject {
         seek(to: displayTranscript[index].startTime)
     }
 
+    func displayContextText(for hit: SearchHit) -> String {
+        guard !displayTranscript.isEmpty else { return hit.displayText }
+
+        var nearest = displayTranscript[0]
+        var nearestDistance = distance(from: hit.startTime, to: nearest)
+        for candidate in displayTranscript.dropFirst() {
+            let candidateDistance = distance(from: hit.startTime, to: candidate)
+            if candidateDistance < nearestDistance {
+                nearest = candidate
+                nearestDistance = candidateDistance
+            }
+        }
+        return nearest.text
+    }
+
     func seek(to seconds: TimeInterval) {
         guard let player else { return }
         let clampedSeconds = clampedTime(seconds)
@@ -680,6 +695,16 @@ final class TranscriptionViewModel: ObservableObject {
             return max(0, value)
         }
         return min(max(0, value), sourceDuration)
+    }
+
+    private func distance(from time: TimeInterval, to word: TranscriptWord) -> TimeInterval {
+        if time < word.startTime {
+            return word.startTime - time
+        }
+        if time > word.endTime {
+            return time - word.endTime
+        }
+        return 0
     }
 
     private func interactiveSeekTolerance() -> CMTime {

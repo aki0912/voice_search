@@ -221,13 +221,20 @@ struct MainView: View {
                     Button {
                         viewModel.jump(to: hit)
                     } label: {
-                        HStack {
-                            Text(hit.displayText)
-                                .lineLimit(1)
-                            Spacer()
-                            Text("\(formatTime(hit.startTime))")
-                                .font(.system(.caption, design: .monospaced))
-                                .foregroundStyle(.secondary)
+                        VStack(alignment: .leading, spacing: 4) {
+                            highlightedContextText(for: hit)
+                                .lineLimit(2)
+
+                            HStack {
+                                Text("一致: \(hit.displayText)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                                Spacer()
+                                Text("\(formatTime(hit.startTime))")
+                                    .font(.system(.caption, design: .monospaced))
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
                     .buttonStyle(.plain)
@@ -329,6 +336,24 @@ struct MainView: View {
         let mins = totalSeconds / 60
         let secs = totalSeconds % 60
         return String(format: "%02d:%02d", mins, secs)
+    }
+
+    private func highlightedContextText(for hit: SearchHit) -> Text {
+        let context = viewModel.displayContextText(for: hit)
+        let target = hit.displayText.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !target.isEmpty,
+              let range = context.range(of: target, options: [.caseInsensitive, .diacriticInsensitive]) else {
+            return Text(context)
+        }
+
+        let prefix = String(context[..<range.lowerBound])
+        let matched = String(context[range])
+        let suffix = String(context[range.upperBound...])
+
+        return Text(prefix)
+        + Text(matched).foregroundColor(.red).fontWeight(.semibold)
+        + Text(suffix)
     }
 }
 
