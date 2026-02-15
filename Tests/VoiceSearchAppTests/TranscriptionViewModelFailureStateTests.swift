@@ -78,23 +78,44 @@ struct TranscriptionViewModelFailureStateTests {
 
     @MainActor
     @Test
-    func displayContextTextReturnsNearestDisplayTranscriptLine() {
+    func displayContextTextPrefersLineContainingMatchedWord() {
         let viewModel = TranscriptionViewModel()
         viewModel.displayTranscript = [
             TranscriptWord(text: "おはようございます", startTime: 0.0, endTime: 1.0),
-            TranscriptWord(text: "本日の議題です", startTime: 2.0, endTime: 3.0),
+            TranscriptWord(text: "本日の議題です", startTime: 1.2, endTime: 2.5),
         ]
 
         let hit = SearchHit(
             startIndex: 3,
             endIndex: 3,
-            startTime: 2.4,
-            endTime: 2.8,
+            startTime: 1.01,
+            endTime: 1.01,
             matchedText: "議題",
             displayText: "議題"
         )
 
         #expect(viewModel.displayContextText(for: hit) == "本日の議題です")
+    }
+
+    @MainActor
+    @Test
+    func displayContextTextFallsBackToMatchedWordWhenNoLineContainsIt() {
+        let viewModel = TranscriptionViewModel()
+        viewModel.displayTranscript = [
+            TranscriptWord(text: "おはようございます", startTime: 0.0, endTime: 1.0),
+            TranscriptWord(text: "本日の会議です", startTime: 1.2, endTime: 2.5),
+        ]
+
+        let hit = SearchHit(
+            startIndex: 4,
+            endIndex: 4,
+            startTime: 2.9,
+            endTime: 3.1,
+            matchedText: "テスト",
+            displayText: "テスト"
+        )
+
+        #expect(viewModel.displayContextText(for: hit) == "テスト")
     }
 
     @MainActor

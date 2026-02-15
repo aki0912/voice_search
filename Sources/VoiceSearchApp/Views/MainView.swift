@@ -226,10 +226,6 @@ struct MainView: View {
                                 .lineLimit(2)
 
                             HStack {
-                                Text("一致: \(hit.displayText)")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
                                 Spacer()
                                 Text("\(formatTime(hit.startTime))")
                                     .font(.system(.caption, design: .monospaced))

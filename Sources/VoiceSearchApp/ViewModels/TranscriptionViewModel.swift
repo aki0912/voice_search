@@ -278,17 +278,27 @@ final class TranscriptionViewModel: ObservableObject {
 
     func displayContextText(for hit: SearchHit) -> String {
         guard !displayTranscript.isEmpty else { return hit.displayText }
+        let target = hit.displayText.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        var nearest = displayTranscript[0]
-        var nearestDistance = distance(from: hit.startTime, to: nearest)
-        for candidate in displayTranscript.dropFirst() {
-            let candidateDistance = distance(from: hit.startTime, to: candidate)
-            if candidateDistance < nearestDistance {
-                nearest = candidate
-                nearestDistance = candidateDistance
-            }
+        let containsHitRange = displayTranscript.filter { line in
+            line.startTime <= hit.startTime && line.endTime >= hit.endTime
         }
-        return nearest.text
+        if let text = bestDisplayContextText(from: containsHitRange, target: target, anchorTime: hit.startTime) {
+            return text
+        }
+
+        let overlapsHitRange = displayTranscript.filter { line in
+            line.endTime >= hit.startTime && line.startTime <= hit.endTime
+        }
+        if let text = bestDisplayContextText(from: overlapsHitRange, target: target, anchorTime: hit.startTime) {
+            return text
+        }
+
+        if let text = bestDisplayContextText(from: displayTranscript, target: target, anchorTime: hit.startTime) {
+            return text
+        }
+
+        return hit.displayText
     }
 
     func seek(to seconds: TimeInterval) {
@@ -705,6 +715,31 @@ final class TranscriptionViewModel: ObservableObject {
             return time - word.endTime
         }
         return 0
+    }
+
+    private func bestDisplayContextText(
+        from candidates: [TranscriptWord],
+        target: String,
+        anchorTime: TimeInterval
+    ) -> String? {
+        guard !candidates.isEmpty else { return nil }
+
+        if !target.isEmpty {
+            let matched = candidates.filter { candidate in
+                candidate.text.range(
+                    of: target,
+                    options: [.caseInsensitive, .diacriticInsensitive]
+                ) != nil
+            }
+            guard !matched.isEmpty else { return nil }
+            return matched.min { lhs, rhs in
+                distance(from: anchorTime, to: lhs) < distance(from: anchorTime, to: rhs)
+            }?.text
+        }
+
+        return candidates.min { lhs, rhs in
+            distance(from: anchorTime, to: lhs) < distance(from: anchorTime, to: rhs)
+        }?.text
     }
 
     private func interactiveSeekTolerance() -> CMTime {
