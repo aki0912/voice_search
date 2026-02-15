@@ -27,6 +27,7 @@ final class TranscriptionViewModel: ObservableObject {
     @Published var sourceURL: URL?
     @Published var isVideoSource = false
     @Published var transcript: [TranscriptWord] = []
+    @Published var displayTranscript: [TranscriptWord] = []
     @Published var queue: [URL] = []
     @Published var statusText: String = "ファイルをドラッグしてください"
     @Published var isAnalyzing = false
@@ -34,6 +35,7 @@ final class TranscriptionViewModel: ObservableObject {
     @Published var isContainsMatchMode: Bool = true
     @Published var searchHits: [SearchHit] = []
     @Published var highlightedIndex: Int? = nil
+    @Published var displayHighlightedIndex: Int? = nil
     @Published var currentTime: TimeInterval = 0
     @Published var sourceDuration: TimeInterval = 0
     @Published var scrubPosition: TimeInterval = 0
@@ -51,6 +53,7 @@ final class TranscriptionViewModel: ObservableObject {
 
     private let pipeline: TranscriptionPipeline
     private let normalizer = DefaultTokenNormalizer()
+    private let displayGrouper = TranscriptDisplayGrouper()
     private let options = SearchOptions()
     private let failureMessageFormatter = TranscriptionFailureMessageFormatter()
     private let failureLogWriter: any TranscriptionFailureLogWriting
@@ -213,6 +216,7 @@ final class TranscriptionViewModel: ObservableObject {
             scrubPosition = 0
             isScrubbingPlayback = false
             scrubWasPlayingBeforeDrag = false
+            displayHighlightedIndex = nil
 
             let itemCount = transcript.count
             let modeText = recognitionModeLabel(from: output.diagnostics)
@@ -267,6 +271,11 @@ final class TranscriptionViewModel: ObservableObject {
         seek(to: transcript[index].startTime)
     }
 
+    func jump(toDisplayWordAt index: Int) {
+        guard index >= 0 && index < displayTranscript.count else { return }
+        seek(to: displayTranscript[index].startTime)
+    }
+
     func seek(to seconds: TimeInterval) {
         guard let player else { return }
         let clampedSeconds = clampedTime(seconds)
@@ -277,6 +286,7 @@ final class TranscriptionViewModel: ObservableObject {
         currentTime = clampedSeconds
         scrubPosition = clampedSeconds
         highlightedIndex = PlaybackLocator.nearestWordIndex(at: clampedSeconds, in: transcript)
+        displayHighlightedIndex = PlaybackLocator.nearestWordIndex(at: clampedSeconds, in: displayTranscript)
         player.play()
     }
 
@@ -301,6 +311,7 @@ final class TranscriptionViewModel: ObservableObject {
         scrubPosition = clamped
         currentTime = clamped
         highlightedIndex = PlaybackLocator.nearestWordIndex(at: clamped, in: transcript)
+        displayHighlightedIndex = PlaybackLocator.nearestWordIndex(at: clamped, in: displayTranscript)
 
         guard let player else { return }
         guard !isScrubbingPlayback else { return }
@@ -326,6 +337,7 @@ final class TranscriptionViewModel: ObservableObject {
         currentTime = clampedSeconds
         scrubPosition = clampedSeconds
         highlightedIndex = PlaybackLocator.nearestWordIndex(at: clampedSeconds, in: transcript)
+        displayHighlightedIndex = PlaybackLocator.nearestWordIndex(at: clampedSeconds, in: displayTranscript)
         if shouldResume {
             player.play()
         }
@@ -381,6 +393,7 @@ final class TranscriptionViewModel: ObservableObject {
                 self.currentTime = seconds
                 self.scrubPosition = self.clampedTime(seconds)
                 self.highlightedIndex = PlaybackLocator.nearestWordIndex(at: seconds, in: self.transcript)
+                self.displayHighlightedIndex = PlaybackLocator.nearestWordIndex(at: seconds, in: self.displayTranscript)
             }
         }
         timeObserverPlayer = player
@@ -484,6 +497,7 @@ final class TranscriptionViewModel: ObservableObject {
     private func applyDictionaryDisplayNormalization() {
         guard !rawTranscript.isEmpty else {
             transcript = []
+            displayTranscript = []
             return
         }
 
@@ -509,6 +523,7 @@ final class TranscriptionViewModel: ObservableObject {
             guard !key.isEmpty, let replacement = displayMap[key] else { return word }
             return TranscriptWord(id: word.id, text: replacement, startTime: word.startTime, endTime: word.endTime)
         }
+        displayTranscript = displayGrouper.group(words: transcript)
     }
 
     private func promptExportFormat() -> TranscriptExportFormat? {
@@ -646,8 +661,10 @@ final class TranscriptionViewModel: ObservableObject {
     private func resetUIStateAfterTranscriptionFailure() {
         rawTranscript = []
         transcript = []
+        displayTranscript = []
         searchHits = []
         highlightedIndex = nil
+        displayHighlightedIndex = nil
         currentTime = 0
         sourceDuration = 0
         scrubPosition = 0

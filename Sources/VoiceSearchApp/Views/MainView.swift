@@ -238,9 +238,9 @@ struct MainView: View {
                 Divider()
 
                 ScrollViewReader { proxy in
-                    List(Array(viewModel.transcript.enumerated()), id: \.element.id) { index, word in
+                    List(Array(viewModel.displayTranscript.enumerated()), id: \.element.id) { index, word in
                     Button {
-                        viewModel.jump(toWordAt: index)
+                        viewModel.jump(toDisplayWordAt: index)
                     } label: {
                         HStack {
                             Text(formatTime(word.startTime))
@@ -252,17 +252,17 @@ struct MainView: View {
                         }
                         .padding(.vertical, 2)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(index == viewModel.highlightedIndex ? Color.accentColor.opacity(0.18) : Color.clear)
+                        .background(index == viewModel.displayHighlightedIndex ? Color.accentColor.opacity(0.18) : Color.clear)
                         .cornerRadius(6)
                     }
                     .id(word.id)
                     .buttonStyle(.plain)
                     }
                     .frame(minHeight: 220)
-                    .onChange(of: viewModel.highlightedIndex) { newIndex in
+                    .onChange(of: viewModel.displayHighlightedIndex) { newIndex in
                     guard focusedField == nil else { return }
-                    guard let newIndex, viewModel.transcript.indices.contains(newIndex) else { return }
-                    let targetID = viewModel.transcript[newIndex].id
+                    guard let newIndex, viewModel.displayTranscript.indices.contains(newIndex) else { return }
+                    let targetID = viewModel.displayTranscript[newIndex].id
                     DispatchQueue.main.async {
                         proxy.scrollTo(targetID, anchor: .center)
                     }

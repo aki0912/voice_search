@@ -211,7 +211,7 @@ public struct TranscriptSearchService: Sendable {
         case .contains:
             for token in tokenForms {
                 for query in queryForms {
-                    if token.contains(query) || query.contains(token) {
+                    if token.contains(query) {
                         return true
                     }
                 }

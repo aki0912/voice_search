@@ -78,6 +78,19 @@ struct TranscriptSearchServiceTests {
     }
 
     @Test
+    func containsModeDoesNotMatchReverseContainment() throws {
+        let words = [
+            TranscriptWord(text: "で", startTime: 0, endTime: 0.2),
+            TranscriptWord(text: "おはようございます", startTime: 0.3, endTime: 1.2)
+        ]
+
+        let service = TranscriptSearchService()
+        let contains = service.search(words: words, query: "です", options: SearchOptions(mode: .contains))
+
+        #expect(contains.isEmpty)
+    }
+
+    @Test
     func nearestWordIndexFindsClosestWord() throws {
         let words = [
             TranscriptWord(text: "a", startTime: 0.0, endTime: 1.0),
@@ -89,5 +102,53 @@ struct TranscriptSearchServiceTests {
         #expect(PlaybackLocator.nearestWordIndex(at: 1.5, in: words) == 1)
         #expect(PlaybackLocator.nearestWordIndex(at: 2.6, in: words) == 2)
         #expect(PlaybackLocator.nearestWordIndex(at: 100, in: words) == 2)
+    }
+}
+
+@Suite
+struct TranscriptDisplayGrouperTests {
+    @Test
+    func mergesKatakanaFragmentsIntoSingleDisplayWord() {
+        let words = [
+            TranscriptWord(text: "コー", startTime: 0.0, endTime: 0.25),
+            TranscriptWord(text: "デックス", startTime: 0.26, endTime: 0.62)
+        ]
+
+        let grouper = TranscriptDisplayGrouper()
+        let grouped = grouper.group(words: words)
+
+        #expect(grouped.count == 1)
+        #expect(grouped[0].text == "コーデックス")
+        #expect(grouped[0].startTime == 0.0)
+        #expect(grouped[0].endTime == 0.62)
+    }
+
+    @Test
+    func keepsSeparatedWordsWhenGapIsLarge() {
+        let words = [
+            TranscriptWord(text: "今日は", startTime: 0.0, endTime: 0.4),
+            TranscriptWord(text: "会議", startTime: 1.2, endTime: 1.6)
+        ]
+
+        let grouper = TranscriptDisplayGrouper()
+        let grouped = grouper.group(words: words)
+
+        #expect(grouped.count == 2)
+        #expect(grouped[0].text == "今日は")
+        #expect(grouped[1].text == "会議")
+    }
+
+    @Test
+    func punctuationIsAttachedToPreviousDisplayWord() {
+        let words = [
+            TranscriptWord(text: "こんにちは", startTime: 0.0, endTime: 0.5),
+            TranscriptWord(text: "。", startTime: 0.51, endTime: 0.54)
+        ]
+
+        let grouper = TranscriptDisplayGrouper()
+        let grouped = grouper.group(words: words)
+
+        #expect(grouped.count == 1)
+        #expect(grouped[0].text == "こんにちは。")
     }
 }
