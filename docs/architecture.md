@@ -1,36 +1,57 @@
-# voice_search アーキテクチャ
+# voice_search アーキテクチャ（現状）
 
-## 3層構成
-- Core (純粋層)
-  - `VoiceSearchCore` モジュール
-  - 依存: Swift標準ライブラリ
-  - 役割: 文字列処理・検索・辞書・再生位置推定
+## レイヤ構成
 
-- Service (OS連携層)
-  - `SpeechAnalyzer`・`SFSpeech`・AVFoundation・ファイルIO
-  - Coreから独立した`TranscriptionService`実装
+### 1. Core（純粋ロジック）
+- モジュール: `VoiceSearchCore`
+- 役割:
+  - `TranscriptWord` / `SearchHit` などの共通モデル
+  - 検索 (`TranscriptSearchService`)
+  - 正規化 (`DefaultTokenNormalizer`)
+  - 表示グルーピング (`TranscriptDisplayGrouper`)
+  - TXT整形 (`TranscriptPlainTextFormatter`)
+  - 文字起こしパイプライン (`TranscriptionPipeline`)
+- 特徴:
+  - UI / Speech framework 依存なし
 
-- Presentation (UI層)
-  - SwiftUI/Mac AppKit
-  - ドラッグ&ドロップ受付、進捗表示、検索結果表示、再生制御
+### 2. Services（OS連携）
+- 実装:
+  - `SpeechAnalyzerTranscriptionService`
+  - `SpeechURLTranscriptionService`
+  - `HybridTranscriptionService`（内部比較やサービス選択用途）
+- 役割:
+  - Speech/AVFoundationと連携して `TranscriptionOutput` を生成
+  - Coreで扱える `TimeInterval` ベースへ正規化
+- 方針:
+  - UIで選択された認識方式を尊重
+  - ユーザー意図を変える自動フォールバックはしない
 
-## データフロー
-1. ドラッグ&ドロップで`file URL`取得
-2. Transcription Service（`HybridTranscriptionService`）で分析ジョブ実行
-3. 結果を`TranscriptWord`に変換
-4. Core の `TranscriptSearchService` に渡して検索可能状態化
-5. UIでヒット選択 → `startTime` でAVPlayer seek/play
+### 3. App（Presentation）
+- モジュール: `VoiceSearchApp`
+- 役割:
+  - SwiftUI表示
+  - ドロップ受付 / 再解析 / クリア
+  - 再生制御 / シーク
+  - 検索とハイライト表示
+  - 用語登録と永続化
+  - TXT/SRT書き出し
 
-## 重要な境界
-- CoreはUI/AppleSpeech非依存
-- Serviceは時間形式（`CMTime`/`TimeInterval`）をCoreで共通化した形へ変換
-- 文字起こしイベントを順序保証した配列にまとめてUIへ渡す
-- 辞書登録はUI層で保持し、検索時にCoreへ反映
+## 主なデータフロー
+1. ドラッグ&ドロップでファイルURLを取得
+2. `TranscriptionViewModel` が選択モードに応じたサービスを構築
+3. `TranscriptionPipeline` 実行で `TranscriptWord[]` を取得
+4. 表示用に `displayTranscript`（グルーピング）を生成
+5. 検索時は `transcript` を対象に `SearchHit[]` を生成
+6. ヒット/行選択で `startTime` へ seek して再生
 
-## サービス切替レイヤ
-- `VoiceSearchApp/Services/SpeechAnalyzerTranscriptionService.swift`
-  - SpeechAnalyzer実装の有無と利用可否を管理
-- `VoiceSearchApp/Services/HybridTranscriptionService.swift`
-  - `SpeechAnalyzer`優先 or `SFSpeech`フォールバックの切替
-- `VoiceSearchApp/Services/SpeechURLTranscriptionService.swift`
-  - 現在の実運用バックアップ経路
+## 主要な状態管理
+- `TranscriptionViewModel`
+  - 入力状態: `sourceURL`, `queue`, `isAnalyzing`
+  - 再生状態: `isPlaying`, `currentTime`, `sourceDuration`, `scrubPosition`
+  - 表示状態: `transcript`, `displayTranscript`, `searchHits`
+  - 設定状態: `recognitionMode`, `txtPauseLineBreakThreshold`, `dictionaryEntries`
+
+## エラー処理方針
+- 失敗時は明示的にエラーメッセージを表示
+- フォールバックではなく、選択モードの失敗理由を返す
+- 失敗ログは書き込み可能な場合に保存し、パスを表示
