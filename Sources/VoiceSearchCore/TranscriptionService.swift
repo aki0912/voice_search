@@ -1,14 +1,37 @@
 import Foundation
 
+public struct TranscriptionProgress: Sendable {
+    public let fractionCompleted: Double
+    public let recognizedDuration: TimeInterval?
+    public let totalDuration: TimeInterval?
+
+    public init(
+        fractionCompleted: Double,
+        recognizedDuration: TimeInterval? = nil,
+        totalDuration: TimeInterval? = nil
+    ) {
+        self.fractionCompleted = max(0, min(1, fractionCompleted))
+        self.recognizedDuration = recognizedDuration
+        self.totalDuration = totalDuration
+    }
+}
+
 public struct TranscriptionRequest: Sendable {
     public let sourceURL: URL
     public let locale: Locale?
     public let contextualStrings: [String]
+    public let progressHandler: (@Sendable (TranscriptionProgress) -> Void)?
 
-    public init(sourceURL: URL, locale: Locale? = nil, contextualStrings: [String] = []) {
+    public init(
+        sourceURL: URL,
+        locale: Locale? = nil,
+        contextualStrings: [String] = [],
+        progressHandler: (@Sendable (TranscriptionProgress) -> Void)? = nil
+    ) {
         self.sourceURL = sourceURL
         self.locale = locale
         self.contextualStrings = contextualStrings
+        self.progressHandler = progressHandler
     }
 }
 

@@ -1,5 +1,12 @@
 import SwiftUI
 import AppKit
+import Speech
+
+private func requestSpeechRecognitionAuthorizationPrompt() {
+    SFSpeechRecognizer.requestAuthorization { @Sendable _ in
+        // No-op. This call exists to trigger the system permission prompt at app launch.
+    }
+}
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -14,9 +21,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         activateAndFocusWindow()
+        requestSpeechRecognitionAuthorizationIfNeeded()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
             self?.activateAndFocusWindow()
         }
+    }
+
+    private func requestSpeechRecognitionAuthorizationIfNeeded() {
+        guard Bundle.main.bundleURL.pathExtension == "app" else { return }
+        let usage = Bundle.main.object(forInfoDictionaryKey: "NSSpeechRecognitionUsageDescription") as? String
+        guard !(usage?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true) else { return }
+        guard SFSpeechRecognizer.authorizationStatus() == .notDetermined else { return }
+        requestSpeechRecognitionAuthorizationPrompt()
     }
 }
 
@@ -29,7 +45,7 @@ struct VoiceSearchApp: App {
     var body: some Scene {
         WindowGroup("Voice Search") {
             MainView(viewModel: viewModel)
-                .frame(minWidth: 940, minHeight: 760)
+                .frame(minWidth: 1020, minHeight: 840)
         }
         .windowResizability(.contentSize)
     }

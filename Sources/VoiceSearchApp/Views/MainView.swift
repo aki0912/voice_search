@@ -15,13 +15,50 @@ struct MainView: View {
     }
 
     var body: some View {
-        VStack(spacing: 14) {
-            VStack(spacing: 10) {
+        GeometryReader { proxy in
+            VStack(spacing: 14) {
+                VStack(spacing: 10) {
                 Text("Voice Search")
                     .font(.system(size: 26, weight: .bold, design: .rounded))
+                    .multilineTextAlignment(.center)
+                    .lineLimit(1)
 
                 Text(viewModel.statusText)
                     .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+
+                    VStack(spacing: 6) {
+                        Text("認識方式")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                        Picker("", selection: $viewModel.recognitionMode) {
+                            ForEach(TranscriptionViewModel.RecognitionMode.allCases) { mode in
+                                Text(mode.displayLabel).tag(mode)
+                            }
+                        }
+                        .frame(maxWidth: 320)
+                        .labelsHidden()
+                        .pickerStyle(.segmented)
+                        .disabled(viewModel.isAnalyzing)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .frame(width: 420)
+                    .background(.thinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .frame(maxWidth: .infinity, alignment: .center)
+
+                if viewModel.isAnalyzing {
+                    VStack(spacing: 6) {
+                        ProgressView(value: viewModel.analysisProgress, total: 1.0)
+                            .progressViewStyle(.linear)
+                        Text("解析進捗（推定）: \(Int((viewModel.analysisProgress * 100).rounded()))%")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: 420)
+                }
 
                 if let error = viewModel.errorMessage {
                     Text(error)
@@ -47,11 +84,13 @@ struct MainView: View {
                         }
                         return true
                     }
-            }
-            .padding(.horizontal)
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.horizontal)
+                .layoutPriority(2)
 
-            if let url = viewModel.sourceURL {
-                HStack {
+                if let url = viewModel.sourceURL {
+                    HStack {
                     Text(url.lastPathComponent)
                         .font(.headline)
                         .lineLimit(1)
@@ -63,18 +102,18 @@ struct MainView: View {
                         }
                     }
                     .disabled(viewModel.isAnalyzing)
+                    }
+                    .padding(.horizontal)
                 }
-                .padding(.horizontal)
-            }
 
-            if viewModel.isVideoSource, let playbackPlayer = viewModel.playbackPlayer {
-                PlayerView(player: playbackPlayer)
+                if viewModel.isVideoSource, let playbackPlayer = viewModel.playbackPlayer {
+                    PlayerView(player: playbackPlayer)
                     .frame(minHeight: 220, maxHeight: 320)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                     .padding(.horizontal)
-            }
+                }
 
-            HStack {
+                HStack {
                 Button(action: { viewModel.playPause() }) {
                     Image(systemName: "playpause.fill")
                 }
@@ -90,10 +129,10 @@ struct MainView: View {
                 .disabled(viewModel.transcript.isEmpty || viewModel.isAnalyzing)
 
                 Spacer()
-            }
-            .padding(.horizontal)
+                }
+                .padding(.horizontal)
 
-            HStack {
+                HStack {
                 TextField("検索ワード", text: $viewModel.query)
                     .textFieldStyle(.roundedBorder)
                     .focused($focusedField, equals: .search)
@@ -114,11 +153,11 @@ struct MainView: View {
                     viewModel.performSearch()
                 }
                 .disabled(viewModel.query.isEmpty)
-            }
-            .padding(.horizontal)
+                }
+                .padding(.horizontal)
 
-            if !viewModel.searchHits.isEmpty {
-                List(viewModel.searchHits) { hit in
+                if !viewModel.searchHits.isEmpty {
+                    List(viewModel.searchHits) { hit in
                     Button {
                         viewModel.jump(to: hit)
                     } label: {
@@ -132,14 +171,14 @@ struct MainView: View {
                         }
                     }
                     .buttonStyle(.plain)
+                    }
+                    .frame(minHeight: 140)
                 }
-                .frame(minHeight: 140)
-            }
 
-            Divider()
+                Divider()
 
-            ScrollViewReader { proxy in
-                List(Array(viewModel.transcript.enumerated()), id: \.element.id) { index, word in
+                ScrollViewReader { proxy in
+                    List(Array(viewModel.transcript.enumerated()), id: \.element.id) { index, word in
                     Button {
                         viewModel.jump(toWordAt: index)
                     } label: {
@@ -158,21 +197,21 @@ struct MainView: View {
                     }
                     .id(word.id)
                     .buttonStyle(.plain)
-                }
-                .frame(minHeight: 220)
-                .onChange(of: viewModel.highlightedIndex) { newIndex in
+                    }
+                    .frame(minHeight: 220)
+                    .onChange(of: viewModel.highlightedIndex) { newIndex in
                     guard focusedField == nil else { return }
                     guard let newIndex, viewModel.transcript.indices.contains(newIndex) else { return }
                     let targetID = viewModel.transcript[newIndex].id
                     DispatchQueue.main.async {
                         proxy.scrollTo(targetID, anchor: .center)
                     }
+                    }
                 }
-            }
 
-            Divider()
+                Divider()
 
-            VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 8) {
                 Text("用語登録（精度向上）")
                     .font(.headline)
 
@@ -215,10 +254,13 @@ struct MainView: View {
                     }
                 }
                 .frame(minHeight: 120)
+                }
+                .padding(.horizontal)
             }
-            .padding(.horizontal)
+            .padding(.top, max(36, proxy.safeAreaInsets.top + 28))
+            .padding(.bottom, 16)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .padding(.vertical)
     }
 
     private func formatTime(_ time: TimeInterval) -> String {

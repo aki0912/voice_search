@@ -16,7 +16,7 @@ struct TranscriptSearchServiceTests {
         let results = service.search(words: words, query: "world")
 
         #expect(results.count == 1)
-        let hit = #require(results.first)
+        let hit = try #require(results.first)
         #expect(hit.startIndex == 1)
         #expect(hit.endIndex == 1)
         #expect(hit.startTime == 1.0)
@@ -35,7 +35,7 @@ struct TranscriptSearchServiceTests {
         let results = service.search(words: words, query: "morning everyone")
 
         #expect(results.count == 1)
-        let hit = #require(results.first)
+        let hit = try #require(results.first)
         #expect(hit.startIndex == 1)
         #expect(hit.endIndex == 2)
         #expect(hit.startTime == 1.0)
@@ -58,7 +58,7 @@ struct TranscriptSearchServiceTests {
         let resultByExact = service.search(words: words, query: "kyoto")
         #expect(resultByAlias.count == 1)
         #expect(resultByExact.count == 1)
-        let aliasHit = #require(resultByAlias.first)
+        let aliasHit = try #require(resultByAlias.first)
         #expect(aliasHit.startIndex == 0)
     }
 

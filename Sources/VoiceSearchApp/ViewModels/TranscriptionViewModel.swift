@@ -4,9 +4,26 @@ import AVFoundation
 import SwiftUI
 import UniformTypeIdentifiers
 import VoiceSearchCore
+import VoiceSearchServices
 
 @MainActor
 final class TranscriptionViewModel: ObservableObject {
+    enum RecognitionMode: String, CaseIterable, Identifiable {
+        case onDevice
+        case server
+
+        var id: String { rawValue }
+
+        var displayLabel: String {
+            switch self {
+            case .onDevice:
+                return "オンデバイス"
+            case .server:
+                return "サーバー"
+            }
+        }
+    }
+
     @Published var sourceURL: URL?
     @Published var isVideoSource = false
     @Published var transcript: [TranscriptWord] = []
@@ -21,8 +38,15 @@ final class TranscriptionViewModel: ObservableObject {
     @Published var isDropTargeted = false
     @Published var dictionaryEntries: [UserDictionaryEntry] = []
     @Published var errorMessage: String?
+    @Published var analysisProgress: Double = 0
+    @Published var recognitionMode: RecognitionMode = .onDevice {
+        didSet {
+            guard recognitionMode != oldValue else { return }
+            guard sourceURL != nil, !isAnalyzing else { return }
+            statusText = "認識方式を\(recognitionMode.displayLabel)に変更しました（再解析で反映）"
+        }
+    }
 
-    private let transcriber: TranscriptionService
     private let pipeline: TranscriptionPipeline
     private let normalizer = DefaultTokenNormalizer()
     private let options = SearchOptions()
@@ -31,6 +55,7 @@ final class TranscriptionViewModel: ObservableObject {
     private var player: AVPlayer?
     private var timeObserverToken: Any?
     private var timeObserverPlayer: AVPlayer?
+    private var analysisProgressTask: Task<Void, Never>?
     private let fileDictionaryURL: URL
 
     private enum TranscriptExportFormat: String {
@@ -41,10 +66,8 @@ final class TranscriptionViewModel: ObservableObject {
     }
 
     init(
-        transcriber: TranscriptionService = HybridTranscriptionService(),
         pipeline: TranscriptionPipeline = TranscriptionPipeline()
     ) {
-        self.transcriber = transcriber
         self.pipeline = pipeline
 
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
@@ -124,6 +147,13 @@ final class TranscriptionViewModel: ObservableObject {
 
     func transcribe(url: URL) async {
         isAnalyzing = true
+        await startAnalysisProgress(for: url)
+        var didSucceed = false
+        defer {
+            finishAnalysisProgress(success: didSucceed)
+            isAnalyzing = false
+        }
+
         errorMessage = nil
         sourceURL = url
         isVideoSource = isVideoFile(url)
@@ -137,11 +167,17 @@ final class TranscriptionViewModel: ObservableObject {
         let request = TranscriptionRequest(
             sourceURL: url,
             locale: nil,
-            contextualStrings: transcriptionContextualStrings()
+            contextualStrings: transcriptionContextualStrings(),
+            progressHandler: { [weak self] progress in
+                Task { @MainActor [weak self] in
+                    self?.mergeAnalysisProgress(progress)
+                }
+            }
         )
 
         do {
-            let output = try await pipeline.run(request, service: transcriber)
+            let service = buildTranscriptionService(for: recognitionMode)
+            let output = try await pipeline.run(request, service: service)
             rawTranscript = output.words
             applyDictionaryDisplayNormalization()
 
@@ -149,12 +185,21 @@ final class TranscriptionViewModel: ObservableObject {
             player = AVPlayer(url: url)
 
             let itemCount = transcript.count
-            statusText = itemCount == 0
-                ? "文字起こし結果が空です"
-                : "\(itemCount)語を抽出"
+            let modeText = recognitionModeLabel(from: output.diagnostics)
+            if itemCount == 0 {
+                statusText = "文字起こし結果が空です"
+            } else if let modeText {
+                statusText = "\(itemCount)語を抽出（\(modeText)）"
+            } else {
+                statusText = "\(itemCount)語を抽出"
+            }
+            if let sourceDuration = output.duration, sourceDuration > 30, itemCount <= 3 {
+                errorMessage = "抽出語数が少ない結果です（\(itemCount)語 / 約\(Int(sourceDuration))秒）。言語設定や音声品質の影響が考えられます。"
+            }
 
             performSearch()
             startTimeObservation()
+            didSucceed = true
         } catch {
             errorMessage = error.localizedDescription
             statusText = "文字起こしに失敗"
@@ -162,8 +207,6 @@ final class TranscriptionViewModel: ObservableObject {
             transcript = []
             searchHits = []
         }
-
-        isAnalyzing = false
     }
 
     func performSearch() {
@@ -257,6 +300,52 @@ final class TranscriptionViewModel: ObservableObject {
         }
         timeObserverToken = nil
         timeObserverPlayer = nil
+    }
+
+    private func startAnalysisProgress(for url: URL) async {
+        analysisProgressTask?.cancel()
+        analysisProgressTask = nil
+        analysisProgress = 0.02
+
+        let expectedSeconds = await estimateAnalysisDuration(for: url)
+        analysisProgressTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            let startedAt = Date()
+
+            while !Task.isCancelled {
+                let elapsed = Date().timeIntervalSince(startedAt)
+                let next = max(0.02, min(0.95, (elapsed / expectedSeconds) * 0.95))
+                self.analysisProgress = max(self.analysisProgress, next)
+                try? await Task.sleep(nanoseconds: 200_000_000)
+            }
+        }
+    }
+
+    private func finishAnalysisProgress(success: Bool) {
+        analysisProgressTask?.cancel()
+        analysisProgressTask = nil
+        analysisProgress = success ? 1.0 : 0.0
+    }
+
+    private func estimateAnalysisDuration(for url: URL) async -> TimeInterval {
+        let asset = AVURLAsset(url: url)
+        guard let duration = try? await asset.load(.duration) else {
+            return 30
+        }
+
+        let seconds = CMTimeGetSeconds(duration)
+        guard seconds.isFinite, seconds > 0 else {
+            return 30
+        }
+
+        // Speech recognition speed varies by device and language.
+        return max(12, seconds * 0.65)
+    }
+
+    private func mergeAnalysisProgress(_ progress: TranscriptionProgress) {
+        guard isAnalyzing else { return }
+        let clamped = max(0.02, min(0.98, progress.fractionCompleted))
+        analysisProgress = max(analysisProgress, clamped)
     }
 
     private func loadDictionary() {
@@ -441,5 +530,32 @@ final class TranscriptionViewModel: ObservableObject {
         let ext = url.pathExtension.lowercased()
         let videoExtensions: Set<String> = ["mp4", "mov", "m4v", "mkv", "avi", "webm", "ts", "mts"]
         return videoExtensions.contains(ext)
+    }
+
+    private func recognitionModeLabel(from diagnostics: [String]) -> String? {
+        guard let line = diagnostics.first(where: { $0.hasPrefix("recognitionMode: ") }) else {
+            return nil
+        }
+        let mode = line.replacingOccurrences(of: "recognitionMode: ", with: "")
+        switch mode {
+        case "onDeviceOnly", "onDeviceOnlyNoFallback", "onDeviceSpeechAnalyzer":
+            return "オンデバイス"
+        case "serverOnly":
+            return "サーバー"
+        default:
+            return mode
+        }
+    }
+
+    private func buildTranscriptionService(for mode: RecognitionMode) -> any TranscriptionService {
+        switch mode {
+        case .server:
+            return SpeechURLTranscriptionService(recognitionStrategy: .serverOnly)
+        case .onDevice:
+            if SpeechAnalyzerTranscriptionService.isAvailable {
+                return SpeechAnalyzerTranscriptionService()
+            }
+            return SpeechURLTranscriptionService(recognitionStrategy: .onDeviceOnly)
+        }
     }
 }

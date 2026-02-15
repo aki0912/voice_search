@@ -8,15 +8,44 @@ public enum SpeechURLTranscriptionServiceError: Error {
     case notAuthorized
     case unsupportedLocale
     case invalidInput(String)
+    case missingPrivacyUsageDescription(String)
+}
+
+extension SpeechURLTranscriptionServiceError: LocalizedError {
+    public var errorDescription: String? {
+        switch self {
+        case .notAuthorized:
+            return "音声認識の権限がありません。システム設定 > プライバシーとセキュリティ > 音声認識で許可してください。"
+        case .unsupportedLocale:
+            return "このロケールでは音声認識を利用できません。"
+        case let .invalidInput(message):
+            return message
+        case let .missingPrivacyUsageDescription(key):
+            return "\(key) が未設定のため音声認識を開始できません。Info.plist に使用目的を設定してください。"
+        }
+    }
 }
 
 public final class SpeechURLTranscriptionService: NSObject, @unchecked Sendable, TranscriptionService {
+    public enum RecognitionStrategy: String, Sendable {
+        case onDeviceOnly
+        case serverOnly
+    }
+
     private struct PreparedRecognitionInput {
         let url: URL
         let cleanupURL: URL?
     }
 
-    public override init() {
+    private let recognitionStrategy: RecognitionStrategy
+    private let allowAuthorizationPrompt: Bool
+
+    public init(
+        recognitionStrategy: RecognitionStrategy = .onDeviceOnly,
+        allowAuthorizationPrompt: Bool = true
+    ) {
+        self.recognitionStrategy = recognitionStrategy
+        self.allowAuthorizationPrompt = allowAuthorizationPrompt
         super.init()
     }
 
@@ -25,6 +54,8 @@ public final class SpeechURLTranscriptionService: NSObject, @unchecked Sendable,
         guard url.isFileURL else {
             throw TranscriptionServiceError.invalidInput("Unsupported source: not a file URL")
         }
+
+        try ensureSpeechRecognitionUsageDescription()
 
         let locale = request.locale ?? .current
         guard let recognizer = SFSpeechRecognizer(locale: locale) else {
@@ -40,37 +71,42 @@ public final class SpeechURLTranscriptionService: NSObject, @unchecked Sendable,
             }
         }
 
-        let recognitionRequest = SFSpeechURLRecognitionRequest(url: preparedInput.url)
-        recognitionRequest.shouldReportPartialResults = false
-        recognitionRequest.requiresOnDeviceRecognition = true
-        recognitionRequest.contextualStrings = Array(request.contextualStrings.prefix(100))
-
         let asset = AVURLAsset(url: url)
         let duration = try? await asset.load(.duration)
-        let words: [TranscriptWord] = try await withCheckedThrowingContinuation { continuation in
-            var alreadyReturned = false
-            _ = recognizer.recognitionTask(with: recognitionRequest) { result, error in
-                if alreadyReturned { return }
+        let sourceDurationSeconds = duration.map(CMTimeGetSeconds)
+        let contextualStrings = Array(request.contextualStrings.prefix(100))
+        let progressHandler = request.progressHandler
 
-                if let error {
-                    alreadyReturned = true
-                    continuation.resume(throwing: SpeechURLTranscriptionServiceError.invalidInput(error.localizedDescription))
-                    return
-                }
+        var words: [TranscriptWord]
+        var diagnostics: [String] = ["recognitionStrategy: \(recognitionStrategy.rawValue)"]
 
-                guard let result else { return }
-                if result.isFinal {
-                    alreadyReturned = true
-                    let words = result.bestTranscription.segments.map { segment in
-                        TranscriptWord(
-                            text: segment.substring.trimmingCharacters(in: .whitespacesAndNewlines),
-                            startTime: segment.timestamp,
-                            endTime: segment.timestamp + segment.duration
-                        )
-                    }
-                    continuation.resume(returning: words)
-                }
-            }
+        switch recognitionStrategy {
+        case .onDeviceOnly:
+            words = try await recognizeWords(
+                recognizer: recognizer,
+                audioURL: preparedInput.url,
+                contextualStrings: contextualStrings,
+                requiresOnDeviceRecognition: true,
+                sourceDuration: sourceDurationSeconds,
+                progressHandler: progressHandler
+            )
+            diagnostics.append("recognitionMode: onDeviceOnly")
+        case .serverOnly:
+            words = try await recognizeWords(
+                recognizer: recognizer,
+                audioURL: preparedInput.url,
+                contextualStrings: contextualStrings,
+                requiresOnDeviceRecognition: false,
+                sourceDuration: sourceDurationSeconds,
+                progressHandler: progressHandler
+            )
+            diagnostics.append("recognitionMode: serverOnly")
+        }
+
+        if let sourceDurationSeconds, sourceDurationSeconds.isFinite, sourceDurationSeconds > 0 {
+            let coveredDuration = (words.last?.endTime ?? 0) - (words.first?.startTime ?? 0)
+            diagnostics.append("sourceDurationSeconds: \(sourceDurationSeconds)")
+            diagnostics.append("coveredDurationSeconds: \(coveredDuration)")
         }
 
         return TranscriptionOutput(
@@ -78,12 +114,88 @@ public final class SpeechURLTranscriptionService: NSObject, @unchecked Sendable,
             words: words,
             locale: locale,
             duration: duration.map(CMTimeGetSeconds),
-            diagnostics: [
+            diagnostics: diagnostics + [
                 "segments: \(words.count)",
-                "contextualStrings: \(recognitionRequest.contextualStrings.count)",
+                "contextualStrings: \(contextualStrings.count)",
                 "recognitionInputExtension: \(preparedInput.url.pathExtension.lowercased())"
             ]
         )
+    }
+
+    private func recognizeWords(
+        recognizer: SFSpeechRecognizer,
+        audioURL: URL,
+        contextualStrings: [String],
+        requiresOnDeviceRecognition: Bool,
+        sourceDuration: TimeInterval?,
+        progressHandler: (@Sendable (TranscriptionProgress) -> Void)?
+    ) async throws -> [TranscriptWord] {
+        let recognitionRequest = SFSpeechURLRecognitionRequest(url: audioURL)
+        recognitionRequest.shouldReportPartialResults = true
+        recognitionRequest.requiresOnDeviceRecognition = requiresOnDeviceRecognition
+        recognitionRequest.contextualStrings = contextualStrings
+
+        return try await withCheckedThrowingContinuation { continuation in
+            var alreadyReturned = false
+            var recognitionTask: SFSpeechRecognitionTask?
+            var lastReportedProgress: Double = 0
+            var accumulator = OnDeviceRecognitionAccumulator()
+
+            recognitionTask = recognizer.recognitionTask(with: recognitionRequest) { result, error in
+                if alreadyReturned { return }
+
+                if let error {
+                    alreadyReturned = true
+                    recognitionTask?.cancel()
+                    recognitionTask = nil
+                    continuation.resume(throwing: SpeechURLTranscriptionServiceError.invalidInput(error.localizedDescription))
+                    return
+                }
+
+                guard let result else { return }
+                let currentWords = result.bestTranscription.segments.compactMap { segment -> TranscriptWord? in
+                    let text = segment.substring.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let start = segment.timestamp
+                    let end = segment.timestamp + segment.duration
+                    return TranscriptWord(text: text, startTime: start, endTime: end)
+                }
+                accumulator.ingest(currentWords)
+
+                if let progress = Self.progressFrom(result: result, sourceDuration: sourceDuration),
+                   progress > lastReportedProgress {
+                    lastReportedProgress = progress
+                    progressHandler?(
+                        TranscriptionProgress(
+                            fractionCompleted: progress,
+                            recognizedDuration: result.bestTranscription.segments.last.map { $0.timestamp + $0.duration },
+                            totalDuration: sourceDuration
+                        )
+                    )
+                }
+
+                if result.isFinal {
+                    alreadyReturned = true
+                    let words = accumulator.sortedWords()
+                    recognitionTask?.cancel()
+                    recognitionTask = nil
+                    continuation.resume(returning: words)
+                }
+            }
+        }
+    }
+
+    private static func progressFrom(result: SFSpeechRecognitionResult, sourceDuration: TimeInterval?) -> Double? {
+        guard let sourceDuration, sourceDuration.isFinite, sourceDuration > 0 else {
+            return nil
+        }
+        guard let last = result.bestTranscription.segments.last else {
+            return nil
+        }
+
+        let recognizedTime = max(0, last.timestamp + last.duration)
+        let raw = recognizedTime / sourceDuration
+        // Keep headroom for finalization/normalization.
+        return max(0.01, min(0.98, raw * 0.98))
     }
 
     private func prepareRecognitionInput(from sourceURL: URL) async throws -> PreparedRecognitionInput {
@@ -174,11 +286,65 @@ public final class SpeechURLTranscriptionService: NSObject, @unchecked Sendable,
             throw SpeechURLTranscriptionServiceError.notAuthorized
         }
 
+        guard status == .notDetermined else {
+            return
+        }
+
+        guard allowAuthorizationPrompt else { return }
+
+        let isAppBundle = Bundle.main.bundleURL.pathExtension == "app"
+        guard isAppBundle else { return }
+
         let nextStatus = await withCheckedContinuation { continuation in
             SFSpeechRecognizer.requestAuthorization { continuation.resume(returning: $0) }
         }
         guard nextStatus == .authorized else {
             throw SpeechURLTranscriptionServiceError.notAuthorized
         }
+    }
+
+    private func ensureSpeechRecognitionUsageDescription() throws {
+        guard Bundle.main.bundleURL.pathExtension == "app" else { return }
+        let key = "NSSpeechRecognitionUsageDescription"
+        let usage = Bundle.main.object(forInfoDictionaryKey: key) as? String
+        let normalized = usage?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if normalized.isEmpty {
+            throw SpeechURLTranscriptionServiceError.missingPrivacyUsageDescription(key)
+        }
+    }
+}
+
+struct OnDeviceRecognitionAccumulator {
+    private var wordsByKey: [String: TranscriptWord] = [:]
+
+    mutating func ingest(_ words: [TranscriptWord]) {
+        for word in words where Self.isValid(word) {
+            wordsByKey[Self.segmentKey(for: word)] = word
+        }
+    }
+
+    func sortedWords() -> [TranscriptWord] {
+        wordsByKey.values.sorted { lhs, rhs in
+            if lhs.startTime == rhs.startTime {
+                return lhs.endTime < rhs.endTime
+            }
+            return lhs.startTime < rhs.startTime
+        }
+    }
+
+    static func isValid(_ word: TranscriptWord) -> Bool {
+        let text = word.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return false }
+        guard word.startTime.isFinite, word.endTime.isFinite else { return false }
+        guard word.endTime > word.startTime else { return false }
+        guard (word.endTime - word.startTime) > 0.02 else { return false }
+        return true
+    }
+
+    static func segmentKey(for word: TranscriptWord) -> String {
+        // Use centisecond buckets to absorb minor timing jitter across partial/final results.
+        let start = Int((word.startTime * 100).rounded())
+        let end = Int((word.endTime * 100).rounded())
+        return "\(start)-\(end)"
     }
 }
