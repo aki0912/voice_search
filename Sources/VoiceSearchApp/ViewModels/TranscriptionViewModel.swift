@@ -163,6 +163,30 @@ final class TranscriptionViewModel: ObservableObject {
         return true
     }
 
+    func clearLoadedMedia() {
+        queue.removeAll()
+        rawTranscript = []
+        transcript = []
+        displayTranscript = []
+        searchHits = []
+        highlightedIndex = nil
+        displayHighlightedIndex = nil
+        currentTime = 0
+        sourceDuration = 0
+        scrubPosition = 0
+        analysisProgress = 0
+        isPlaying = false
+        isScrubbingPlayback = false
+        scrubWasPlayingBeforeDrag = false
+        sourceURL = nil
+        isVideoSource = false
+        isDropTargeted = false
+        errorMessage = nil
+        statusText = "ファイルをドラッグしてください"
+        detachTimeObserver()
+        player = nil
+    }
+
     private func processQueue() async {
         guard !queue.isEmpty else { return }
 

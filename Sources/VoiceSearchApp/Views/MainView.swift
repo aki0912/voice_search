@@ -66,42 +66,84 @@ struct MainView: View {
                         .font(.footnote)
                 }
 
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(viewModel.isDropTargeted ? Color.accentColor : Color.secondary, lineWidth: 2)
-                    .frame(maxWidth: .infinity, minHeight: 140)
-                    .overlay(
-                        VStack {
-                            Image(systemName: "arrow.down.doc")
-                                .font(.system(size: 34))
-                            Text("ここに音声/動画をドラッグ&ドロップ")
-                                .font(.headline)
+                if viewModel.sourceURL == nil {
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(viewModel.isDropTargeted ? Color.accentColor : Color.secondary, lineWidth: 2)
+                        .frame(maxWidth: .infinity, minHeight: 94)
+                        .overlay(
+                            VStack {
+                                Image(systemName: "arrow.down.doc")
+                                    .font(.system(size: 24))
+                                Text("ここに音声/動画をドラッグ&ドロップ")
+                                    .font(.subheadline)
+                            }
+                            .foregroundStyle(.secondary)
+                        )
+                        .onDrop(of: [UTType.fileURL, UTType.movie, UTType.audio], isTargeted: $viewModel.isDropTargeted) { providers in
+                            Task {
+                                _ = await viewModel.handleDrop(providers: providers)
+                            }
+                            return true
                         }
-                        .foregroundStyle(.secondary)
-                    )
-                    .onDrop(of: [UTType.fileURL, UTType.movie, UTType.audio], isTargeted: $viewModel.isDropTargeted) { providers in
-                        Task {
-                            _ = await viewModel.handleDrop(providers: providers)
-                        }
-                        return true
-                    }
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.horizontal)
+                        .layoutPriority(2)
                 }
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.horizontal)
-                .layoutPriority(2)
 
                 if let url = viewModel.sourceURL {
-                    HStack {
-                    Text(url.lastPathComponent)
-                        .font(.headline)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                    Spacer()
-                    Button(viewModel.isAnalyzing ? "解析中..." : "再解析") {
-                        Task {
-                            await viewModel.transcribe(url: url)
+                    HStack(alignment: .top, spacing: 16) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(spacing: 8) {
+                                Text(url.lastPathComponent)
+                                    .font(.headline)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+
+                                Button("クリア") {
+                                    viewModel.clearLoadedMedia()
+                                }
+                                .disabled(viewModel.isAnalyzing)
+                            }
+
+                            HStack(spacing: 8) {
+                                Button(viewModel.isAnalyzing ? "解析中..." : "再解析") {
+                                    Task {
+                                        await viewModel.transcribe(url: url)
+                                    }
+                                }
+                                .disabled(viewModel.isAnalyzing)
+
+                                Button("テキスト出力") {
+                                    viewModel.exportTranscriptToFile()
+                                }
+                                .disabled(viewModel.transcript.isEmpty || viewModel.isAnalyzing)
+                                
+                                Text("閾値")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+
+                                TextField(
+                                    "0.10",
+                                    value: $viewModel.txtPauseLineBreakThreshold,
+                                    formatter: Self.thresholdFormatter
+                                )
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 72)
+                                .multilineTextAlignment(.trailing)
+                                .onSubmit {
+                                    viewModel.updateTxtPauseLineBreakThreshold(viewModel.txtPauseLineBreakThreshold)
+                                }
+                                .onChange(of: viewModel.txtPauseLineBreakThreshold) { newValue in
+                                    viewModel.updateTxtPauseLineBreakThreshold(newValue)
+                                }
+
+                                Text("秒")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
-                    }
-                    .disabled(viewModel.isAnalyzing)
+
+                        Spacer(minLength: 0)
                     }
                     .padding(.horizontal)
                 }
@@ -111,6 +153,7 @@ struct MainView: View {
                     .frame(minHeight: 220, maxHeight: 320)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                     .padding(.horizontal)
+                }
                 }
 
             if !viewModel.isVideoSource, viewModel.playbackPlayer != nil {
@@ -144,11 +187,6 @@ struct MainView: View {
                             .frame(width: 80, alignment: .leading)
 
                         Spacer()
-
-                        Button("テキストを書き出し") {
-                            viewModel.exportTranscriptToFile()
-                        }
-                        .disabled(viewModel.transcript.isEmpty || viewModel.isAnalyzing)
                     }
                 }
                 .padding(.horizontal)
@@ -162,11 +200,6 @@ struct MainView: View {
                     Text("\(formatTime(viewModel.currentTime))")
                         .font(.system(.body, design: .monospaced))
                         .frame(width: 80, alignment: .leading)
-
-                    Button("テキストを書き出し") {
-                        viewModel.exportTranscriptToFile()
-                    }
-                    .disabled(viewModel.transcript.isEmpty || viewModel.isAnalyzing)
 
                     Spacer()
                 }
@@ -197,38 +230,6 @@ struct MainView: View {
                     Text(formatTime(viewModel.sourceDuration))
                         .font(.system(.caption, design: .monospaced))
                         .frame(width: 58, alignment: .trailing)
-                }
-                .padding(.horizontal)
-            }
-
-            if !viewModel.transcript.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("TXT改行しきい値（秒）")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    HStack(spacing: 10) {
-                        TextField(
-                            "0.10",
-                            value: $viewModel.txtPauseLineBreakThreshold,
-                            formatter: Self.thresholdFormatter
-                        )
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 90)
-                        .multilineTextAlignment(.trailing)
-                        .onSubmit {
-                            viewModel.updateTxtPauseLineBreakThreshold(viewModel.txtPauseLineBreakThreshold)
-                        }
-                        .onChange(of: viewModel.txtPauseLineBreakThreshold) { newValue in
-                            viewModel.updateTxtPauseLineBreakThreshold(newValue)
-                        }
-
-                        Text("0.00 - 2.00")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                        Spacer()
-                    }
                 }
                 .padding(.horizontal)
             }

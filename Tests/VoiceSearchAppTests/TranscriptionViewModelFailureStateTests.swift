@@ -154,4 +154,54 @@ struct TranscriptionViewModelFailureStateTests {
         viewModel.updateTxtPauseLineBreakThreshold(.nan)
         #expect(viewModel.txtPauseLineBreakThreshold == 2.0)
     }
+
+    @MainActor
+    @Test
+    func clearLoadedMediaResetsLoadedStateAndStatus() {
+        let viewModel = TranscriptionViewModel()
+        viewModel.sourceURL = URL(fileURLWithPath: "/tmp/sample.wav")
+        viewModel.isVideoSource = true
+        viewModel.transcript = [TranscriptWord(text: "test", startTime: 0, endTime: 1)]
+        viewModel.displayTranscript = [TranscriptWord(text: "test", startTime: 0, endTime: 1)]
+        viewModel.queue = [URL(fileURLWithPath: "/tmp/next.wav")]
+        viewModel.searchHits = [
+            SearchHit(
+                startIndex: 0,
+                endIndex: 0,
+                startTime: 0,
+                endTime: 1,
+                matchedText: "test",
+                displayText: "test"
+            )
+        ]
+        viewModel.highlightedIndex = 0
+        viewModel.displayHighlightedIndex = 0
+        viewModel.currentTime = 12
+        viewModel.sourceDuration = 90
+        viewModel.scrubPosition = 33
+        viewModel.analysisProgress = 0.7
+        viewModel.isPlaying = true
+        viewModel.isDropTargeted = true
+        viewModel.errorMessage = "x"
+        viewModel.statusText = "解析中"
+
+        viewModel.clearLoadedMedia()
+
+        #expect(viewModel.sourceURL == nil)
+        #expect(viewModel.isVideoSource == false)
+        #expect(viewModel.transcript.isEmpty)
+        #expect(viewModel.displayTranscript.isEmpty)
+        #expect(viewModel.queue.isEmpty)
+        #expect(viewModel.searchHits.isEmpty)
+        #expect(viewModel.highlightedIndex == nil)
+        #expect(viewModel.displayHighlightedIndex == nil)
+        #expect(viewModel.currentTime == 0)
+        #expect(viewModel.sourceDuration == 0)
+        #expect(viewModel.scrubPosition == 0)
+        #expect(viewModel.analysisProgress == 0)
+        #expect(viewModel.isPlaying == false)
+        #expect(viewModel.isDropTargeted == false)
+        #expect(viewModel.errorMessage == nil)
+        #expect(viewModel.statusText == "ファイルをドラッグしてください")
+    }
 }
