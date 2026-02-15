@@ -6,6 +6,8 @@ struct MainView: View {
     @ObservedObject var viewModel: TranscriptionViewModel
     @State private var newTermCanonical: String = ""
     @State private var newTermAliases: String = ""
+    @State private var isClearButtonHovered = false
+    @State private var clearTooltipDelayTask: Task<Void, Never>?
     @FocusState private var focusedField: FocusedField?
 
     private enum FocusedField: Hashable {
@@ -91,60 +93,71 @@ struct MainView: View {
                 }
 
                 if let url = viewModel.sourceURL {
-                    HStack(alignment: .top, spacing: 16) {
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack(spacing: 8) {
-                                Text(url.lastPathComponent)
-                                    .font(.headline)
-                                    .lineLimit(1)
-                                    .truncationMode(.middle)
-
-                                Button("クリア") {
-                                    viewModel.clearLoadedMedia()
-                                }
-                                .disabled(viewModel.isAnalyzing)
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(spacing: 10) {
+                            Image(systemName: "doc.text")
+                                .foregroundStyle(.secondary)
+                            Text(url.lastPathComponent)
+                                .font(.headline)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                            Button(action: {
+                                viewModel.clearLoadedMedia()
+                            }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.title3)
+                                    .foregroundStyle(isClearButtonHovered ? Color.red : Color.secondary)
                             }
+                            .buttonStyle(.plain)
+                            .onHover { hovering in
+                                clearTooltipDelayTask?.cancel()
 
-                            HStack(spacing: 8) {
-                                Button(viewModel.isAnalyzing ? "解析中..." : "再解析") {
-                                    Task {
-                                        await viewModel.transcribe(url: url)
+                                if hovering {
+                                    clearTooltipDelayTask = Task { @MainActor in
+                                        try? await Task.sleep(nanoseconds: 100_000_000)
+                                        guard !Task.isCancelled else { return }
+                                        withAnimation(.easeOut(duration: 0.12)) {
+                                            isClearButtonHovered = true
+                                        }
+                                    }
+                                } else {
+                                    withAnimation(.easeOut(duration: 0.08)) {
+                                        isClearButtonHovered = false
                                     }
                                 }
-                                .disabled(viewModel.isAnalyzing)
-
-                                Button("テキスト出力") {
-                                    viewModel.exportTranscriptToFile()
-                                }
-                                .disabled(viewModel.transcript.isEmpty || viewModel.isAnalyzing)
-                                
-                                Text("閾値")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-
-                                TextField(
-                                    "0.10",
-                                    value: $viewModel.txtPauseLineBreakThreshold,
-                                    formatter: Self.thresholdFormatter
-                                )
-                                .textFieldStyle(.roundedBorder)
-                                .frame(width: 72)
-                                .multilineTextAlignment(.trailing)
-                                .onSubmit {
-                                    viewModel.updateTxtPauseLineBreakThreshold(viewModel.txtPauseLineBreakThreshold)
-                                }
-                                .onChange(of: viewModel.txtPauseLineBreakThreshold) { newValue in
-                                    viewModel.updateTxtPauseLineBreakThreshold(newValue)
-                                }
-
-                                Text("秒")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
                             }
+                            .overlay(alignment: .topTrailing) {
+                                if isClearButtonHovered {
+                                    Text("ファイルをクリア")
+                                        .font(.caption)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(.ultraThinMaterial)
+                                        .clipShape(Capsule())
+                                        .offset(y: -28)
+                                        .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                                }
+                            }
+                            .help("ファイルをクリアします")
+                            .disabled(viewModel.isAnalyzing)
+                            Spacer(minLength: 0)
                         }
 
-                        Spacer(minLength: 0)
+                        HStack(spacing: 10) {
+                            Button(viewModel.isAnalyzing ? "解析中..." : "再解析") {
+                                Task {
+                                    await viewModel.transcribe(url: url)
+                                }
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(viewModel.isAnalyzing)
+                            Spacer(minLength: 0)
+                        }
                     }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(.thinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
                     .padding(.horizontal)
                 }
 
@@ -156,8 +169,8 @@ struct MainView: View {
                 }
                 }
 
-            if !viewModel.isVideoSource, viewModel.playbackPlayer != nil {
-                VStack(spacing: 10) {
+            if viewModel.playbackPlayer != nil {
+                VStack(spacing: 8) {
                     HStack {
                         Spacer()
                         Button(action: { viewModel.playPause() }) {
@@ -165,43 +178,26 @@ struct MainView: View {
                                 viewModel.isPlaying ? "停止" : "再生",
                                 systemImage: viewModel.isPlaying ? "pause.fill" : "play.fill"
                             )
-                                .font(.system(size: 18, weight: .semibold))
-                                .frame(minWidth: 170)
-                                .padding(.horizontal, 24)
-                                .padding(.vertical, 12)
+                            .font(viewModel.isVideoSource ? .body : .headline)
+                            .frame(minWidth: viewModel.isVideoSource ? 120 : 170)
+                            .padding(.vertical, viewModel.isVideoSource ? 6 : 10)
                         }
                         .buttonStyle(.borderedProminent)
-                        .controlSize(.large)
+                        .controlSize(viewModel.isVideoSource ? .regular : .large)
                         .tint(viewModel.isPlaying ? .orange : .accentColor)
                         .disabled(viewModel.sourceURL == nil)
                         Spacer()
                     }
 
-                    Text(viewModel.isPlaying ? "再生中" : "停止中")
-                        .font(.caption)
-                        .foregroundStyle(viewModel.isPlaying ? .green : .secondary)
-
                     HStack {
+                        Text(viewModel.isPlaying ? "再生中" : "停止中")
+                            .font(.caption)
+                            .foregroundStyle(viewModel.isPlaying ? .green : .secondary)
+                        Spacer()
                         Text("\(formatTime(viewModel.currentTime))")
                             .font(.system(.body, design: .monospaced))
-                            .frame(width: 80, alignment: .leading)
-
-                        Spacer()
+                            .frame(width: 80, alignment: .trailing)
                     }
-                }
-                .padding(.horizontal)
-            } else {
-                HStack {
-                    Button(action: { viewModel.playPause() }) {
-                        Image(systemName: viewModel.isPlaying ? "pause.fill" : "play.fill")
-                    }
-                    .disabled(viewModel.sourceURL == nil)
-
-                    Text("\(formatTime(viewModel.currentTime))")
-                        .font(.system(.body, design: .monospaced))
-                        .frame(width: 80, alignment: .leading)
-
-                    Spacer()
                 }
                 .padding(.horizontal)
             }
@@ -280,7 +276,43 @@ struct MainView: View {
                     .frame(minHeight: 140)
                 }
 
-                Divider()
+                if viewModel.sourceURL != nil {
+                    HStack(spacing: 10) {
+                        Spacer(minLength: 0)
+
+                        Text("TXT改行閾値")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        TextField(
+                            "0.10",
+                            value: $viewModel.txtPauseLineBreakThreshold,
+                            formatter: Self.thresholdFormatter
+                        )
+                        .textFieldStyle(.roundedBorder)
+                        .controlSize(.large)
+                        .frame(width: 88)
+                        .multilineTextAlignment(.trailing)
+                        .onSubmit {
+                            viewModel.updateTxtPauseLineBreakThreshold(viewModel.txtPauseLineBreakThreshold)
+                        }
+                        .onChange(of: viewModel.txtPauseLineBreakThreshold) { newValue in
+                            viewModel.updateTxtPauseLineBreakThreshold(newValue)
+                        }
+
+                        Text("秒")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        Button("テキスト出力") {
+                            viewModel.exportTranscriptToFile()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                        .disabled(viewModel.transcript.isEmpty || viewModel.isAnalyzing)
+                    }
+                    .padding(.horizontal)
+                }
 
                 ScrollViewReader { proxy in
                     List(Array(viewModel.displayTranscript.enumerated()), id: \.element.id) { index, word in
