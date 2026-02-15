@@ -36,6 +36,7 @@ final class TranscriptionViewModel: ObservableObject {
     @Published var searchHits: [SearchHit] = []
     @Published var highlightedIndex: Int? = nil
     @Published var displayHighlightedIndex: Int? = nil
+    @Published var isPlaying: Bool = false
     @Published var currentTime: TimeInterval = 0
     @Published var sourceDuration: TimeInterval = 0
     @Published var scrubPosition: TimeInterval = 0
@@ -217,6 +218,7 @@ final class TranscriptionViewModel: ObservableObject {
             isScrubbingPlayback = false
             scrubWasPlayingBeforeDrag = false
             displayHighlightedIndex = nil
+            isPlaying = false
 
             let itemCount = transcript.count
             let modeText = recognitionModeLabel(from: output.diagnostics)
@@ -313,14 +315,17 @@ final class TranscriptionViewModel: ObservableObject {
         highlightedIndex = PlaybackLocator.nearestWordIndex(at: clampedSeconds, in: transcript)
         displayHighlightedIndex = PlaybackLocator.nearestWordIndex(at: clampedSeconds, in: displayTranscript)
         player.play()
+        isPlaying = true
     }
 
     func playPause() {
         guard let player else { return }
         if player.timeControlStatus == .playing {
             player.pause()
+            isPlaying = false
         } else {
             player.play()
+            isPlaying = true
         }
     }
 
@@ -328,6 +333,7 @@ final class TranscriptionViewModel: ObservableObject {
         guard !isScrubbingPlayback else { return }
         scrubWasPlayingBeforeDrag = player?.timeControlStatus == .playing
         player?.pause()
+        isPlaying = false
         isScrubbingPlayback = true
     }
 
@@ -365,6 +371,9 @@ final class TranscriptionViewModel: ObservableObject {
         displayHighlightedIndex = PlaybackLocator.nearestWordIndex(at: clampedSeconds, in: displayTranscript)
         if shouldResume {
             player.play()
+            isPlaying = true
+        } else {
+            isPlaying = false
         }
     }
 
@@ -414,6 +423,7 @@ final class TranscriptionViewModel: ObservableObject {
                    itemDuration > 0 {
                     self.sourceDuration = itemDuration
                 }
+                self.isPlaying = player.timeControlStatus == .playing
                 guard !self.isScrubbingPlayback else { return }
                 self.currentTime = seconds
                 self.scrubPosition = self.clampedTime(seconds)
@@ -585,7 +595,7 @@ final class TranscriptionViewModel: ObservableObject {
     }
 
     private func transcriptTextContentTXT() -> String {
-        let plain = transcript.map(\.text).joined(separator: " ")
+        let plain = TranscriptPlainTextFormatter().format(words: transcript)
         let timed = transcript.map { word in
             "[\(formatTimeForExport(word.startTime)) - \(formatTimeForExport(word.endTime))] \(word.text)"
         }.joined(separator: "\n")
@@ -693,6 +703,7 @@ final class TranscriptionViewModel: ObservableObject {
         currentTime = 0
         sourceDuration = 0
         scrubPosition = 0
+        isPlaying = false
         isScrubbingPlayback = false
         scrubWasPlayingBeforeDrag = false
         detachTimeObserver()

@@ -118,16 +118,25 @@ struct MainView: View {
                     HStack {
                         Spacer()
                         Button(action: { viewModel.playPause() }) {
-                            Label("再生 / 停止", systemImage: "playpause.fill")
+                            Label(
+                                viewModel.isPlaying ? "停止" : "再生",
+                                systemImage: viewModel.isPlaying ? "pause.fill" : "play.fill"
+                            )
                                 .font(.system(size: 18, weight: .semibold))
+                                .frame(minWidth: 170)
                                 .padding(.horizontal, 24)
                                 .padding(.vertical, 12)
                         }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.large)
+                        .tint(viewModel.isPlaying ? .orange : .accentColor)
                         .disabled(viewModel.sourceURL == nil)
                         Spacer()
                     }
+
+                    Text(viewModel.isPlaying ? "再生中" : "停止中")
+                        .font(.caption)
+                        .foregroundStyle(viewModel.isPlaying ? .green : .secondary)
 
                     HStack {
                         Text("\(formatTime(viewModel.currentTime))")
@@ -146,7 +155,7 @@ struct MainView: View {
             } else {
                 HStack {
                     Button(action: { viewModel.playPause() }) {
-                        Image(systemName: "playpause.fill")
+                        Image(systemName: viewModel.isPlaying ? "pause.fill" : "play.fill")
                     }
                     .disabled(viewModel.sourceURL == nil)
 

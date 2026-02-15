@@ -180,3 +180,72 @@ struct TranscriptDisplayGrouperTests {
         #expect(grouped[0].text == "こんにちは。")
     }
 }
+
+@Suite
+struct TranscriptPlainTextFormatterTests {
+    @Test
+    func formatsJapaneseWithoutUnnecessarySpacesAndBreaksBySentence() {
+        let words = [
+            TranscriptWord(text: "おはよう", startTime: 0, endTime: 0.2),
+            TranscriptWord(text: "ございます", startTime: 0.21, endTime: 0.5),
+            TranscriptWord(text: "。", startTime: 0.51, endTime: 0.53),
+            TranscriptWord(text: "今日", startTime: 0.54, endTime: 0.7),
+            TranscriptWord(text: "は", startTime: 0.71, endTime: 0.72),
+            TranscriptWord(text: "会議", startTime: 0.73, endTime: 0.9),
+            TranscriptWord(text: "です", startTime: 0.91, endTime: 1.0),
+            TranscriptWord(text: "。", startTime: 1.01, endTime: 1.03),
+        ]
+
+        let text = TranscriptPlainTextFormatter().format(words: words)
+        #expect(text == "おはようございます。\n今日は会議です。")
+    }
+
+    @Test
+    func keepsSpacesForLatinWords() {
+        let words = [
+            TranscriptWord(text: "hello", startTime: 0, endTime: 0.3),
+            TranscriptWord(text: "world", startTime: 0.31, endTime: 0.6),
+            TranscriptWord(text: ".", startTime: 0.61, endTime: 0.62),
+            TranscriptWord(text: "swift", startTime: 0.63, endTime: 0.9),
+            TranscriptWord(text: "test", startTime: 0.91, endTime: 1.2),
+        ]
+
+        let text = TranscriptPlainTextFormatter().format(words: words)
+        #expect(text == "hello world.\nswift test")
+    }
+
+    @Test
+    func insertsSoftBreakOnLongJapaneseLine() {
+        let words = [
+            TranscriptWord(text: "これは", startTime: 0, endTime: 0.2),
+            TranscriptWord(text: "とても", startTime: 0.21, endTime: 0.4),
+            TranscriptWord(text: "長い", startTime: 0.41, endTime: 0.6),
+            TranscriptWord(text: "文章", startTime: 0.61, endTime: 0.8),
+            TranscriptWord(text: "です", startTime: 0.81, endTime: 1.0),
+            TranscriptWord(text: "、", startTime: 1.01, endTime: 1.02),
+            TranscriptWord(text: "次", startTime: 1.03, endTime: 1.2),
+            TranscriptWord(text: "です", startTime: 1.21, endTime: 1.4),
+            TranscriptWord(text: "。", startTime: 1.41, endTime: 1.42),
+        ]
+
+        let formatter = TranscriptPlainTextFormatter(preferredLineLength: 8, hardLineLength: 20)
+        let text = formatter.format(words: words)
+        #expect(text == "これはとても長い文章です、\n次です。")
+    }
+
+    @Test
+    func insertsLineBreakWhenPauseBetweenWordsIsLongEnough() {
+        let words = [
+            TranscriptWord(text: "おはよう", startTime: 0.0, endTime: 0.2),
+            TranscriptWord(text: "ございます", startTime: 0.21, endTime: 0.5),
+            TranscriptWord(text: "今日", startTime: 1.2, endTime: 1.35),
+            TranscriptWord(text: "は", startTime: 1.36, endTime: 1.4),
+            TranscriptWord(text: "晴れ", startTime: 1.41, endTime: 1.6),
+            TranscriptWord(text: "です", startTime: 1.61, endTime: 1.78),
+        ]
+
+        let formatter = TranscriptPlainTextFormatter(pauseLineBreakThreshold: 0.45)
+        let text = formatter.format(words: words)
+        #expect(text == "おはようございます\n今日は晴れです")
+    }
+}
