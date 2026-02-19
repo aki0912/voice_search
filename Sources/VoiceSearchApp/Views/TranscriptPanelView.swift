@@ -43,7 +43,7 @@ struct TranscriptPanelView: View {
             HStack(spacing: 4) {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.secondary)
-                    .font(.caption)
+                    .font(.footnote)
                 TextField("検索ワード", text: $viewModel.query)
                     .textFieldStyle(.plain)
                     .focused($isSearchFieldFocused)
@@ -55,7 +55,7 @@ struct TranscriptPanelView: View {
                     Button(action: { viewModel.query = "" }) {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(.secondary)
-                            .font(.caption)
+                            .font(.footnote)
                     }
                     .buttonStyle(.plain)
                 }
@@ -67,7 +67,7 @@ struct TranscriptPanelView: View {
 
             Toggle("部分一致", isOn: $viewModel.isContainsMatchMode)
                 .toggleStyle(.switch)
-                .controlSize(.mini)
+                .controlSize(.small)
                 .onChange(of: viewModel.isContainsMatchMode) { _ in
                     viewModel.performSearch()
                 }
@@ -80,11 +80,11 @@ struct TranscriptPanelView: View {
         VStack(spacing: 0) {
             HStack {
                 Label("検索結果", systemImage: "magnifyingglass")
-                    .font(.caption)
+                    .font(.footnote)
                     .fontWeight(.medium)
                     .foregroundStyle(.secondary)
                 Text("\(viewModel.searchHits.count)件")
-                    .font(.caption)
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
@@ -105,7 +105,7 @@ struct TranscriptPanelView: View {
                         HStack {
                             Spacer()
                             Text(formatTime(hit.startTime))
-                                .font(.system(.caption, design: .monospaced))
+                                .font(.system(.footnote, design: .monospaced))
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -121,12 +121,12 @@ struct TranscriptPanelView: View {
         VStack(spacing: 0) {
             HStack {
                 Label("文字起こし", systemImage: "text.word.spacing")
-                    .font(.caption)
+                    .font(.footnote)
                     .fontWeight(.medium)
                     .foregroundStyle(.secondary)
                 if !viewModel.displayTranscript.isEmpty {
                     Text("\(viewModel.displayTranscript.count)件")
-                        .font(.caption)
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
@@ -155,9 +155,9 @@ struct TranscriptPanelView: View {
                 } label: {
                     HStack {
                         Text(formatTime(word.startTime))
-                            .font(.system(.caption, design: .monospaced))
+                            .font(.system(.footnote, design: .monospaced))
                             .foregroundStyle(.secondary)
-                            .frame(width: 52, alignment: .leading)
+                            .frame(width: 58, alignment: .leading)
                         Text(word.text)
                             .foregroundStyle(.primary)
                         Spacer()
@@ -193,7 +193,7 @@ struct TranscriptPanelView: View {
             Spacer(minLength: 0)
 
             Text("TXT改行閾値")
-                .font(.caption)
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
             TextField(
                 "0.10",
@@ -201,8 +201,8 @@ struct TranscriptPanelView: View {
                 formatter: Self.thresholdFormatter
             )
             .textFieldStyle(.roundedBorder)
-            .controlSize(.small)
-            .frame(width: 64)
+            .controlSize(.regular)
+            .frame(width: 78)
             .multilineTextAlignment(.trailing)
             .onSubmit {
                 viewModel.updateTxtPauseLineBreakThreshold(viewModel.txtPauseLineBreakThreshold)
@@ -211,7 +211,7 @@ struct TranscriptPanelView: View {
                 viewModel.updateTxtPauseLineBreakThreshold(newValue)
             }
             Text("秒")
-                .font(.caption)
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
 
             Button {
@@ -220,7 +220,8 @@ struct TranscriptPanelView: View {
                 Label("テキスト出力", systemImage: "square.and.arrow.up")
             }
             .buttonStyle(.borderedProminent)
-            .controlSize(.small)
+            .controlSize(.regular)
+            .frame(minWidth: 132)
             .disabled(viewModel.transcript.isEmpty || viewModel.isAnalyzing)
         }
     }

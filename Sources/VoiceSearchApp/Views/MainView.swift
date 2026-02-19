@@ -27,11 +27,11 @@ struct MainView: View {
     private var headerBar: some View {
         HStack(spacing: 16) {
             Text("Voice Search")
-                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .font(.system(size: 18, weight: .semibold, design: .rounded))
 
             VStack(spacing: 2) {
                 Text(viewModel.statusText)
-                    .font(.caption)
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
 
@@ -45,7 +45,7 @@ struct MainView: View {
 
             HStack(spacing: 8) {
                 Text("認識方式")
-                    .font(.caption)
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
                 Picker("", selection: $viewModel.recognitionMode) {
                     ForEach(TranscriptionViewModel.RecognitionMode.allCases) { mode in
@@ -54,6 +54,7 @@ struct MainView: View {
                 }
                 .labelsHidden()
                 .pickerStyle(.segmented)
+                .controlSize(.regular)
                 .fixedSize()
             }
             .disabled(viewModel.isAnalyzing)

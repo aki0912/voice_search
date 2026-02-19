@@ -18,12 +18,12 @@ struct DictionarySectionView: View {
                 HStack(spacing: 6) {
                     TextField("登録語", text: $newTermCanonical)
                         .textFieldStyle(.roundedBorder)
-                        .controlSize(.small)
+                        .controlSize(.regular)
                         .focused($focusedField, equals: .canonical)
 
                     TextField("同義語（カンマ区切り）", text: $newTermAliases)
                         .textFieldStyle(.roundedBorder)
-                        .controlSize(.small)
+                        .controlSize(.regular)
                         .focused($focusedField, equals: .aliases)
 
                     Button(action: addEntry) {
@@ -44,18 +44,18 @@ struct DictionarySectionView: View {
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(entry.canonical)
-                                    .font(.caption)
+                                    .font(.footnote)
                                     .fontWeight(.medium)
                                 if !entry.aliases.isEmpty {
                                     Text(entry.aliases.joined(separator: ", "))
-                                        .font(.caption2)
+                                        .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
                             }
                             Spacer()
                             Button(action: { viewModel.removeDictionaryEntry(entry) }) {
                                 Image(systemName: "trash")
-                                    .font(.caption)
+                                    .font(.footnote)
                                     .foregroundStyle(.red.opacity(0.7))
                             }
                             .buttonStyle(.plain)
@@ -64,7 +64,7 @@ struct DictionarySectionView: View {
                     .frame(minHeight: 80, maxHeight: 160)
                 } else {
                     Text("登録された用語はありません")
-                        .font(.caption)
+                        .font(.footnote)
                         .foregroundStyle(.tertiary)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.vertical, 12)
@@ -73,13 +73,13 @@ struct DictionarySectionView: View {
         } label: {
             HStack {
                 Image(systemName: "character.book.closed")
-                    .font(.caption)
+                    .font(.footnote)
                 Text("用語辞書")
-                    .font(.subheadline)
+                    .font(.callout)
                     .fontWeight(.medium)
                 if !viewModel.dictionaryEntries.isEmpty {
                     Text("\(viewModel.dictionaryEntries.count)")
-                        .font(.caption2)
+                        .font(.caption)
                         .padding(.horizontal, 5)
                         .padding(.vertical, 1)
                         .background(Color.secondary.opacity(0.2))

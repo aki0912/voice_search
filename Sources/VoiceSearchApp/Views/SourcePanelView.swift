@@ -54,7 +54,7 @@ struct SourcePanelView: View {
                     Image(systemName: "arrow.down.doc")
                         .font(.system(size: 28))
                     Text("ここに音声/動画を\nドラッグ&ドロップ")
-                        .font(.subheadline)
+                        .font(.callout)
                         .multilineTextAlignment(.center)
                 }
                 .foregroundStyle(.secondary)
@@ -95,7 +95,8 @@ struct SourcePanelView: View {
                             )
                         }
                         .buttonStyle(.borderedProminent)
-                        .controlSize(.small)
+                        .controlSize(.regular)
+                        .frame(minWidth: 132)
                         .disabled(viewModel.isAnalyzing)
                     }
                 }
@@ -110,7 +111,7 @@ struct SourcePanelView: View {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.yellow)
             Text(message)
-                .font(.caption)
+                .font(.footnote)
                 .foregroundStyle(.red)
             Spacer(minLength: 0)
         }
@@ -148,7 +149,7 @@ struct SourcePanelView: View {
         .overlay(alignment: .topTrailing) {
             if isClearButtonHovered {
                 Text("ファイルをクリア")
-                    .font(.caption)
+                    .font(.footnote)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
                     .background(.ultraThinMaterial)

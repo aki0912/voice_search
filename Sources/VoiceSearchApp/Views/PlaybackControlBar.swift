@@ -22,14 +22,14 @@ struct PlaybackControlBar: View {
                             .fill(viewModel.isPlaying ? Color.green : Color.secondary.opacity(0.4))
                             .frame(width: 6, height: 6)
                         Text(viewModel.isPlaying ? "再生中" : "停止中")
-                            .font(.caption)
+                            .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
 
                     Spacer()
 
                     Text("\(formatTime(viewModel.currentTime)) / \(formatTime(viewModel.sourceDuration))")
-                        .font(.system(.caption, design: .monospaced))
+                        .font(.system(.footnote, design: .monospaced))
                         .foregroundStyle(.secondary)
                 }
 
