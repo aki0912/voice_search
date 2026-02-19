@@ -6,6 +6,7 @@ struct SourcePanelView: View {
     @ObservedObject var viewModel: TranscriptionViewModel
     @State private var isClearButtonHovered = false
     @State private var clearTooltipDelayTask: Task<Void, Never>?
+    @State private var isFileImporterPresented = false
 
     var body: some View {
         ScrollView {
@@ -37,6 +38,19 @@ struct SourcePanelView: View {
             .padding(12)
         }
         .background(Color(nsColor: .controlBackgroundColor))
+        .fileImporter(
+            isPresented: $isFileImporterPresented,
+            allowedContentTypes: [.audio, .movie],
+            allowsMultipleSelection: false
+        ) { result in
+            switch result {
+            case .success(let urls):
+                guard let url = urls.first else { return }
+                Task { await viewModel.transcribe(url: url) }
+            case .failure(let error):
+                viewModel.errorMessage = "ファイル選択に失敗: \(error.localizedDescription)"
+            }
+        }
     }
 
     // MARK: - File Drop Zone
@@ -53,11 +67,15 @@ struct SourcePanelView: View {
                 VStack(spacing: 8) {
                     Image(systemName: "arrow.down.doc")
                         .font(.system(size: 28))
-                    Text("ここに音声/動画を\nドラッグ&ドロップ")
+                    Text("クリックしてファイル選択\nまたはドラッグ&ドロップ")
                         .font(.callout)
                         .multilineTextAlignment(.center)
                 }
                 .foregroundStyle(.secondary)
+            }
+            .contentShape(RoundedRectangle(cornerRadius: 12))
+            .onTapGesture {
+                isFileImporterPresented = true
             }
             .onDrop(
                 of: [UTType.fileURL, UTType.movie, UTType.audio],
