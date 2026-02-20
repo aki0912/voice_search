@@ -16,12 +16,12 @@ struct DictionarySectionView: View {
         DisclosureGroup(isExpanded: $isDictionaryExpanded) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 6) {
-                    TextField("登録語", text: $newTermCanonical)
+                    TextField(AppL10n.text("dictionary.termPlaceholder"), text: $newTermCanonical)
                         .textFieldStyle(.roundedBorder)
                         .controlSize(.regular)
                         .focused($focusedField, equals: .canonical)
 
-                    TextField("同義語（カンマ区切り）", text: $newTermAliases)
+                    TextField(AppL10n.text("dictionary.aliasesPlaceholder"), text: $newTermAliases)
                         .textFieldStyle(.roundedBorder)
                         .controlSize(.regular)
                         .focused($focusedField, equals: .aliases)
@@ -63,7 +63,7 @@ struct DictionarySectionView: View {
                     }
                     .frame(minHeight: 80, maxHeight: 160)
                 } else {
-                    Text("登録された用語はありません")
+                    Text(AppL10n.text("dictionary.empty"))
                         .font(.footnote)
                         .foregroundStyle(.tertiary)
                         .frame(maxWidth: .infinity, alignment: .center)
@@ -74,7 +74,7 @@ struct DictionarySectionView: View {
             HStack {
                 Image(systemName: "character.book.closed")
                     .font(.footnote)
-                Text("用語辞書")
+                Text(AppL10n.text("dictionary.title"))
                     .font(.callout)
                     .fontWeight(.medium)
                 if !viewModel.dictionaryEntries.isEmpty {

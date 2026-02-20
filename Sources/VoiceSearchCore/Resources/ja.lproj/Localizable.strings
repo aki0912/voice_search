@@ -1,0 +1,7 @@
+"failure.headline" = "文字起こしに失敗（%@）";
+"failure.cause" = "原因: %@";
+"failure.hint" = "対処: %@";
+"failure.hint.authorization" = "システム設定の「プライバシーとセキュリティ > 音声認識」で許可状態を確認してください。";
+"failure.hint.noAudioTrack" = "音声トラックを含むファイルを指定してください。動画の場合は音声付きファイルを使ってください。";
+"failure.hint.unsupportedLocale" = "認識言語設定を変更し、対象言語が利用可能か確認してください。";
+"failure.hint.asset" = "音声認識アセットの準備が完了するまで待ってから再実行してください。";

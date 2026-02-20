@@ -4,7 +4,7 @@ public struct TranscriptionFailureMessageFormatter: Sendable {
     public init() {}
 
     public func format(modeLabel: String, error: Error) -> String {
-        let headline = "文字起こしに失敗（\(modeLabel)）"
+        let headline = CoreL10n.format("failure.headline", modeLabel)
         let primary = normalized(error.localizedDescription)
         let nsError = error as NSError
         let cause = extractCause(nsError: nsError, primary: primary)
@@ -12,10 +12,10 @@ public struct TranscriptionFailureMessageFormatter: Sendable {
 
         var lines: [String] = ["\(headline): \(primary)"]
         if let cause {
-            lines.append("原因: \(cause)")
+            lines.append(CoreL10n.format("failure.cause", cause))
         }
         if let hint {
-            lines.append("対処: \(hint)")
+            lines.append(CoreL10n.format("failure.hint", hint))
         }
         return lines.joined(separator: "\n")
     }
@@ -43,16 +43,16 @@ public struct TranscriptionFailureMessageFormatter: Sendable {
         let lower = normalizedTarget.lowercased()
 
         if lower.contains("権限") || lower.contains("not authorized") || lower.contains("authorization") {
-            return "システム設定の「プライバシーとセキュリティ > 音声認識」で許可状態を確認してください。"
+            return CoreL10n.text("failure.hint.authorization")
         }
         if lower.contains("no audio track") || lower.contains("音声トラック") {
-            return "音声トラックを含むファイルを指定してください。動画の場合は音声付きファイルを使ってください。"
+            return CoreL10n.text("failure.hint.noAudioTrack")
         }
         if lower.contains("unsupported locale") || lower.contains("サポート") || lower.contains("locale") {
-            return "認識言語設定を変更し、対象言語が利用可能か確認してください。"
+            return CoreL10n.text("failure.hint.unsupportedLocale")
         }
         if lower.contains("asset") || lower.contains("model") {
-            return "音声認識アセットの準備が完了するまで待ってから再実行してください。"
+            return CoreL10n.text("failure.hint.asset")
         }
         return nil
     }

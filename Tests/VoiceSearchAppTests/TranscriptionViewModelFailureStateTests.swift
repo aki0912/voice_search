@@ -53,8 +53,9 @@ struct TranscriptionViewModelFailureStateTests {
         #expect(viewModel.sourceDuration == 0)
         #expect(viewModel.scrubPosition == 0)
         #expect(viewModel.isAnalyzing == false)
-        #expect(viewModel.statusText.contains("文字起こしに失敗"))
-        #expect(viewModel.errorMessage?.contains("文字起こしに失敗") == true)
+        let modeLabel = viewModel.recognitionMode.displayLabel
+        #expect(viewModel.statusText == AppL10n.format("status.transcriptionFailed", modeLabel))
+        #expect(viewModel.errorMessage?.contains(CoreL10n.format("failure.headline", modeLabel)) == true)
     }
 
     @MainActor
@@ -73,7 +74,7 @@ struct TranscriptionViewModelFailureStateTests {
         #expect(entry.sourceURL.path == "/tmp/unsupported_input.txt")
         #expect(entry.query == "debug query")
         #expect(entry.containsMatchEnabled == true)
-        #expect(viewModel.errorMessage?.contains("ログ: /tmp/voice_search_failure.log") == true)
+        #expect(viewModel.errorMessage?.contains(expectedLogURL.path) == true)
     }
 
     @MainActor
@@ -202,6 +203,6 @@ struct TranscriptionViewModelFailureStateTests {
         #expect(viewModel.isPlaying == false)
         #expect(viewModel.isDropTargeted == false)
         #expect(viewModel.errorMessage == nil)
-        #expect(viewModel.statusText == "ファイルをドラッグしてください")
+        #expect(viewModel.statusText == AppL10n.text("status.dragFile"))
     }
 }

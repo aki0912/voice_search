@@ -43,7 +43,7 @@ struct VoiceSearchApp: App {
     @StateObject private var viewModel = TranscriptionViewModel()
 
     var body: some Scene {
-        WindowGroup("Voice Search") {
+        WindowGroup(AppL10n.text("app.title")) {
             MainView(viewModel: viewModel)
                 .frame(minWidth: 1020, minHeight: 640)
         }

@@ -21,7 +21,11 @@ struct PlaybackControlBar: View {
                         Circle()
                             .fill(viewModel.isPlaying ? Color.green : Color.secondary.opacity(0.4))
                             .frame(width: 6, height: 6)
-                        Text(viewModel.isPlaying ? "再生中" : "停止中")
+                        Text(
+                            viewModel.isPlaying
+                                ? AppL10n.text("playback.playing")
+                                : AppL10n.text("playback.stopped")
+                        )
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }

@@ -1,0 +1,15 @@
+"cli.error.missingInputValue" = "Missing value for --input";
+"cli.error.missingOutputValue" = "Missing value for --output";
+"cli.error.missingModeValue" = "Missing value for --mode";
+"cli.error.invalidMode" = "Invalid --mode: %1$@\nAllowed values: %2$@";
+"cli.error.missingLocaleValue" = "Missing value for --locale";
+"cli.error.unknownArgument" = "Unknown argument: %@";
+"cli.error.inputRequired" = "--input is required";
+"cli.error.inputNotFound" = "Input file was not found: %@";
+
+"cli.output.completed" = "Completed: %@";
+"cli.output.running" = "Running (%@) ...";
+
+"cli.hint.onDeviceLikelyCutOff" = "On-device recognition was likely cut off before completion.";
+"cli.hint.coverageDiffLarge" = "On-device coverage is much shorter than server recognition.";
+"cli.hint.noMajorGap" = "No statistically clear on-device-specific large omission was detected.";

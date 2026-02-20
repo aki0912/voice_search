@@ -1,0 +1,15 @@
+"cli.error.missingInputValue" = "--input の値がありません";
+"cli.error.missingOutputValue" = "--output の値がありません";
+"cli.error.missingModeValue" = "--mode の値がありません";
+"cli.error.invalidMode" = "不正な --mode です: %1$@\n指定可能: %2$@";
+"cli.error.missingLocaleValue" = "--locale の値がありません";
+"cli.error.unknownArgument" = "不明な引数です: %@";
+"cli.error.inputRequired" = "--input は必須です";
+"cli.error.inputNotFound" = "入力ファイルが見つかりません: %@";
+
+"cli.output.completed" = "完了: %@";
+"cli.output.running" = "実行中 (%@) ...";
+
+"cli.hint.onDeviceLikelyCutOff" = "オンデバイス認識が途中で打ち切られている可能性が高いです。";
+"cli.hint.coverageDiffLarge" = "オンデバイス認識のカバー時間が短く、サーバー認識との差が大きいです。";
+"cli.hint.noMajorGap" = "オンデバイス特有の大きな欠落は統計上は明確ではありません。";

@@ -26,7 +26,7 @@ struct MainView: View {
     @ViewBuilder
     private var headerBar: some View {
         HStack(spacing: 16) {
-            Text("Voice Search")
+            Text(AppL10n.text("app.title"))
                 .font(.system(size: 18, weight: .semibold, design: .rounded))
 
             VStack(spacing: 2) {
@@ -44,7 +44,7 @@ struct MainView: View {
             .frame(maxWidth: .infinity)
 
             HStack(spacing: 8) {
-                Text("認識方式")
+                Text(AppL10n.text("header.recognitionMode"))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                 Picker("", selection: $viewModel.recognitionMode) {

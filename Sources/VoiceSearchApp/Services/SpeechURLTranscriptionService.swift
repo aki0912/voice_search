@@ -14,13 +14,13 @@ extension SpeechURLTranscriptionServiceError: LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .notAuthorized:
-            return "音声認識の権限がありません。システム設定 > プライバシーとセキュリティ > 音声認識で許可してください。"
+            return ServicesL10n.text("speechURL.error.notAuthorized")
         case .unsupportedLocale:
-            return "このロケールでは音声認識を利用できません。"
+            return ServicesL10n.text("speechURL.error.unsupportedLocale")
         case let .invalidInput(message):
             return message
         case let .missingPrivacyUsageDescription(key):
-            return "\(key) が未設定のため音声認識を開始できません。Info.plist に使用目的を設定してください。"
+            return ServicesL10n.format("speechURL.error.missingPrivacyUsageDescription", key)
         }
     }
 }

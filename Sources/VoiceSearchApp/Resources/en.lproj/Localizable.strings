@@ -1,0 +1,61 @@
+"app.title" = "Voice Search";
+"header.recognitionMode" = "Recognition Mode";
+"recognition.mode.onDevice" = "On-device";
+"recognition.mode.server" = "Server";
+
+"status.dragFile" = "Drag and drop a file to start";
+"status.modeChanged" = "Recognition mode changed to %@ (applies on re-run)";
+"status.processingQueuedFile" = "Processing queued file (%ld total): %@";
+"status.analyzingFile" = "Analyzing: %@";
+"status.emptyTranscript" = "No transcript words were extracted";
+"status.extractedWordsWithMode" = "Extracted %ld words (%@)";
+"status.extractedWords" = "Extracted %ld words";
+"status.transcriptionFailed" = "Transcription failed (%@)";
+"status.exportedText" = "Exported transcript: %@";
+
+"error.prepareSettingsDirectory" = "Failed to prepare settings directory: %@";
+"error.loadDroppedData" = "Failed to read dropped item: %@";
+"error.lowWordCount" = "Very few words were extracted (%ld words / about %ld sec). Check language settings and audio quality.";
+"error.noTranscriptToExport" = "There is no transcript to export";
+"error.exportFailed" = "Failed to export transcript: %@";
+"error.dictionaryLoadFailed" = "Failed to load dictionary: %@";
+"error.dictionarySaveFailed" = "Failed to save dictionary: %@";
+"error.failureMessageWithLogPath" = "%1$@\nLog: %2$@";
+"error.speechAnalyzerUnavailable" = "The on-device recognizer (SpeechAnalyzer) is unavailable in this environment. Use server mode or run on a supported OS.";
+"error.fileSelectionFailed" = "File selection failed: %@";
+
+"source.dropPrompt" = "Click to choose a file\nor drag and drop";
+
+"button.analyzing" = "Analyzing...";
+"button.reanalyze" = "Re-run";
+"button.clearFile" = "Clear file";
+"button.exportText" = "Export text";
+
+"help.clearFile" = "Clear the loaded file";
+
+"search.placeholder" = "Search term";
+"search.partialMatch" = "Partial match";
+"search.results" = "Search Results";
+
+"count.items" = "%ld items";
+
+"transcript.title" = "Transcript";
+
+"export.txtThreshold" = "TXT break threshold";
+"export.panel.title" = "Save transcript text";
+"export.format.title" = "Choose export format";
+"export.format.message" = "You can save the transcript as TXT or SRT.";
+"export.txt.header.transcript" = "Transcript";
+"export.txt.header.timedWords" = "Timed Words";
+
+"dictionary.title" = "Dictionary";
+"dictionary.termPlaceholder" = "Canonical term";
+"dictionary.aliasesPlaceholder" = "Aliases (comma-separated)";
+"dictionary.empty" = "No dictionary terms yet";
+
+"playback.playing" = "Playing";
+"playback.stopped" = "Stopped";
+
+"common.save" = "Save";
+"common.cancel" = "Cancel";
+"time.seconds" = "sec";

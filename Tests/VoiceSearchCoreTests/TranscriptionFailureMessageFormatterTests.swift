@@ -22,9 +22,10 @@ struct TranscriptionFailureMessageFormatterTests {
             ]
         )
 
-        let message = formatter.format(modeLabel: "オンデバイス", error: error)
-        #expect(message.contains("文字起こしに失敗（オンデバイス）: top level"))
-        #expect(message.contains("原因: failed reason"))
+        let modeLabel = "on-device"
+        let message = formatter.format(modeLabel: modeLabel, error: error)
+        #expect(message.contains("\(CoreL10n.format("failure.headline", modeLabel)): top level"))
+        #expect(message.contains(CoreL10n.format("failure.cause", "failed reason")))
     }
 
     @Test
@@ -36,9 +37,8 @@ struct TranscriptionFailureMessageFormatterTests {
             userInfo: [NSLocalizedDescriptionKey: "not authorized"]
         )
 
-        let message = formatter.format(modeLabel: "サーバー", error: error)
-        #expect(message.contains("対処:"))
-        #expect(message.contains("音声認識"))
+        let message = formatter.format(modeLabel: "server", error: error)
+        #expect(message.contains(CoreL10n.text("failure.hint.authorization")))
     }
 
     @Test
@@ -53,7 +53,8 @@ struct TranscriptionFailureMessageFormatterTests {
             ]
         )
 
-        let message = formatter.format(modeLabel: "オンデバイス", error: error)
-        #expect(!message.contains("\n原因:"))
+        let message = formatter.format(modeLabel: "on-device", error: error)
+        let causePrefix = CoreL10n.text("failure.cause").replacingOccurrences(of: "%@", with: "")
+        #expect(!message.contains("\n\(causePrefix)"))
     }
 }

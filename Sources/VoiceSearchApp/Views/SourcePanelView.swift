@@ -48,7 +48,10 @@ struct SourcePanelView: View {
                 guard let url = urls.first else { return }
                 Task { await viewModel.transcribe(url: url) }
             case .failure(let error):
-                viewModel.errorMessage = "ファイル選択に失敗: \(error.localizedDescription)"
+                viewModel.errorMessage = AppL10n.format(
+                    "error.fileSelectionFailed",
+                    error.localizedDescription
+                )
             }
         }
     }
@@ -67,7 +70,7 @@ struct SourcePanelView: View {
                 VStack(spacing: 8) {
                     Image(systemName: "arrow.down.doc")
                         .font(.system(size: 28))
-                    Text("クリックしてファイル選択\nまたはドラッグ&ドロップ")
+                    Text(AppL10n.text("source.dropPrompt"))
                         .font(.callout)
                         .multilineTextAlignment(.center)
                 }
@@ -108,7 +111,9 @@ struct SourcePanelView: View {
                             Task { await viewModel.transcribe(url: url) }
                         } label: {
                             Label(
-                                viewModel.isAnalyzing ? "解析中..." : "再解析",
+                                viewModel.isAnalyzing
+                                    ? AppL10n.text("button.analyzing")
+                                    : AppL10n.text("button.reanalyze"),
                                 systemImage: "arrow.clockwise"
                             )
                         }
@@ -166,7 +171,7 @@ struct SourcePanelView: View {
         }
         .overlay(alignment: .topTrailing) {
             if isClearButtonHovered {
-                Text("ファイルをクリア")
+                Text(AppL10n.text("button.clearFile"))
                     .font(.footnote)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
@@ -176,7 +181,7 @@ struct SourcePanelView: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.9)))
             }
         }
-        .help("ファイルをクリアします")
+        .help(AppL10n.text("help.clearFile"))
         .disabled(viewModel.isAnalyzing)
     }
 }

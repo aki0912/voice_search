@@ -15,13 +15,13 @@ extension SpeechAnalyzerTranscriptionError: LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .unavailable:
-            return "SpeechAnalyzer がこの環境で利用できません。"
+            return ServicesL10n.text("speechAnalyzer.error.unavailable")
         case let .unsupportedLocale(identifier):
-            return "SpeechAnalyzer がロケール \(identifier) をサポートしていません。"
+            return ServicesL10n.format("speechAnalyzer.error.unsupportedLocale", identifier)
         case let .invalidInput(message):
             return message
         case let .assetInstallFailed(message):
-            return "音声認識アセットの準備に失敗しました: \(message)"
+            return ServicesL10n.format("speechAnalyzer.error.assetInstallFailed", message)
         }
     }
 }
@@ -97,7 +97,9 @@ public final class SpeechAnalyzerTranscriptionService: NSObject, @unchecked Send
             do {
                 audioFile = try AVAudioFile(forReading: preparedInput.url)
             } catch {
-                throw SpeechAnalyzerTranscriptionError.invalidInput("音声ファイルを開けませんでした: \(error.localizedDescription)")
+                throw SpeechAnalyzerTranscriptionError.invalidInput(
+                    ServicesL10n.format("speechAnalyzer.error.openAudioFailed", error.localizedDescription)
+                )
             }
 
             let duration = Double(audioFile.length) / audioFile.processingFormat.sampleRate
@@ -106,7 +108,9 @@ public final class SpeechAnalyzerTranscriptionService: NSObject, @unchecked Send
             do {
                 try await analyzer.start(inputAudioFile: audioFile, finishAfterFile: true)
             } catch {
-                throw SpeechAnalyzerTranscriptionError.invalidInput("SpeechAnalyzer の開始に失敗: \(error.localizedDescription)")
+                throw SpeechAnalyzerTranscriptionError.invalidInput(
+                    ServicesL10n.format("speechAnalyzer.error.startFailed", error.localizedDescription)
+                )
             }
 
             var transcript = AttributedString()

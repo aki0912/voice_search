@@ -1,0 +1,9 @@
+"speechAnalyzer.error.unavailable" = "SpeechAnalyzer is unavailable in this environment.";
+"speechAnalyzer.error.unsupportedLocale" = "SpeechAnalyzer does not support locale %@.";
+"speechAnalyzer.error.assetInstallFailed" = "Failed to prepare speech recognition assets: %@";
+"speechAnalyzer.error.openAudioFailed" = "Failed to open audio file: %@";
+"speechAnalyzer.error.startFailed" = "Failed to start SpeechAnalyzer: %@";
+
+"speechURL.error.notAuthorized" = "Speech recognition permission is not granted. Enable it in System Settings > Privacy & Security > Speech Recognition.";
+"speechURL.error.unsupportedLocale" = "Speech recognition is unavailable for this locale.";
+"speechURL.error.missingPrivacyUsageDescription" = "Cannot start speech recognition because %@ is missing. Set a usage description in Info.plist.";

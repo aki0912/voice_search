@@ -1,0 +1,9 @@
+"speechAnalyzer.error.unavailable" = "SpeechAnalyzer がこの環境で利用できません。";
+"speechAnalyzer.error.unsupportedLocale" = "SpeechAnalyzer がロケール %@ をサポートしていません。";
+"speechAnalyzer.error.assetInstallFailed" = "音声認識アセットの準備に失敗しました: %@";
+"speechAnalyzer.error.openAudioFailed" = "音声ファイルを開けませんでした: %@";
+"speechAnalyzer.error.startFailed" = "SpeechAnalyzer の開始に失敗: %@";
+
+"speechURL.error.notAuthorized" = "音声認識の権限がありません。システム設定 > プライバシーとセキュリティ > 音声認識で許可してください。";
+"speechURL.error.unsupportedLocale" = "このロケールでは音声認識を利用できません。";
+"speechURL.error.missingPrivacyUsageDescription" = "%@ が未設定のため音声認識を開始できません。Info.plist に使用目的を設定してください。";

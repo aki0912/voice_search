@@ -45,46 +45,52 @@ private struct CLIOptions {
             case "--input":
                 index += 1
                 guard index < arguments.count else {
-                    throw CLIError.usage("--input の値がありません\n\n" + Self.usageText())
+                    throw CLIError.usage(CLIL10n.text("cli.error.missingInputValue") + "\n\n" + Self.usageText())
                 }
                 inputPath = arguments[index]
             case "--output":
                 index += 1
                 guard index < arguments.count else {
-                    throw CLIError.usage("--output の値がありません\n\n" + Self.usageText())
+                    throw CLIError.usage(CLIL10n.text("cli.error.missingOutputValue") + "\n\n" + Self.usageText())
                 }
                 outputPath = arguments[index]
             case "--mode":
                 index += 1
                 guard index < arguments.count else {
-                    throw CLIError.usage("--mode の値がありません\n\n" + Self.usageText())
+                    throw CLIError.usage(CLIL10n.text("cli.error.missingModeValue") + "\n\n" + Self.usageText())
                 }
                 guard let parsed = RunMode(rawValue: arguments[index]) else {
-                    throw CLIError.usage("不正な --mode です: \(arguments[index])\n指定可能: \(RunMode.allValues.joined(separator: ", "))")
+                    throw CLIError.usage(
+                        CLIL10n.format(
+                            "cli.error.invalidMode",
+                            arguments[index],
+                            RunMode.allValues.joined(separator: ", ")
+                        )
+                    )
                 }
                 mode = parsed
             case "--locale":
                 index += 1
                 guard index < arguments.count else {
-                    throw CLIError.usage("--locale の値がありません\n\n" + Self.usageText())
+                    throw CLIError.usage(CLIL10n.text("cli.error.missingLocaleValue") + "\n\n" + Self.usageText())
                 }
                 localeIdentifier = arguments[index]
             case "--allow-auth-prompt":
                 allowAuthorizationPrompt = true
             default:
-                throw CLIError.usage("不明な引数です: \(arg)\n\n" + Self.usageText())
+                throw CLIError.usage(CLIL10n.format("cli.error.unknownArgument", arg) + "\n\n" + Self.usageText())
             }
             index += 1
         }
 
         guard let inputPath else {
-            throw CLIError.usage("--input は必須です\n\n" + Self.usageText())
+            throw CLIError.usage(CLIL10n.text("cli.error.inputRequired") + "\n\n" + Self.usageText())
         }
 
         let resolvedInputPath = (inputPath as NSString).expandingTildeInPath
         let inputURL = URL(fileURLWithPath: resolvedInputPath)
         guard FileManager.default.fileExists(atPath: inputURL.path) else {
-            throw CLIError.usage("入力ファイルが見つかりません: \(inputURL.path)")
+            throw CLIError.usage(CLIL10n.format("cli.error.inputNotFound", inputURL.path))
         }
 
         let outputURL: URL = {
@@ -140,7 +146,7 @@ struct VoiceSearchCLI {
             try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
             try reportText.write(to: options.outputURL, atomically: true, encoding: .utf8)
 
-            print("完了: \(options.outputURL.path)")
+            print(CLIL10n.format("cli.output.completed", options.outputURL.path))
         } catch {
             fputs("error: \(error.localizedDescription)\n", stderr)
             exit(1)
@@ -183,7 +189,7 @@ struct VoiceSearchCLI {
         strategy: SpeechURLTranscriptionService.RecognitionStrategy,
         options: CLIOptions
     ) async throws -> RunRecord {
-        print("実行中 (\(label)) ...")
+        print(CLIL10n.format("cli.output.running", label))
         let bundlePath = Bundle.main.bundleURL.path
         let statusBefore = authorizationStatusLabel(SFSpeechRecognizer.authorizationStatus())
         let pipeline = TranscriptionPipeline()
@@ -229,12 +235,12 @@ struct VoiceSearchCLI {
 
         let issueHint: String = {
             if onDeviceSummary.wordCount <= 3 && serverSummary.wordCount > onDeviceSummary.wordCount * 5 {
-                return "オンデバイス認識が途中で打ち切られている可能性が高いです。"
+                return CLIL10n.text("cli.hint.onDeviceLikelyCutOff")
             }
             if let coverageDiff, coverageDiff > 0.2 {
-                return "オンデバイス認識のカバー時間が短く、サーバー認識との差が大きいです。"
+                return CLIL10n.text("cli.hint.coverageDiffLarge")
             }
-            return "オンデバイス特有の大きな欠落は統計上は明確ではありません。"
+            return CLIL10n.text("cli.hint.noMajorGap")
         }()
 
         return """

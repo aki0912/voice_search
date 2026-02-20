@@ -1,0 +1,61 @@
+"app.title" = "Voice Search";
+"header.recognitionMode" = "認識方式";
+"recognition.mode.onDevice" = "オンデバイス";
+"recognition.mode.server" = "サーバー";
+
+"status.dragFile" = "ファイルをドラッグしてください";
+"status.modeChanged" = "認識方式を%@に変更しました（再解析で反映）";
+"status.processingQueuedFile" = "%ld件中現在処理: %@";
+"status.analyzingFile" = "解析中: %@";
+"status.emptyTranscript" = "文字起こし結果が空です";
+"status.extractedWordsWithMode" = "%ld語を抽出（%@）";
+"status.extractedWords" = "%ld語を抽出";
+"status.transcriptionFailed" = "文字起こしに失敗（%@）";
+"status.exportedText" = "テキストを書き出しました: %@";
+
+"error.prepareSettingsDirectory" = "設定保存先を用意できませんでした: %@";
+"error.loadDroppedData" = "ドロップデータの読み込みに失敗: %@";
+"error.lowWordCount" = "抽出語数が少ない結果です（%ld語 / 約%ld秒）。言語設定や音声品質の影響が考えられます。";
+"error.noTranscriptToExport" = "書き出す文字起こしがありません";
+"error.exportFailed" = "テキスト書き出しに失敗: %@";
+"error.dictionaryLoadFailed" = "辞書の読み込みに失敗: %@";
+"error.dictionarySaveFailed" = "辞書の保存に失敗: %@";
+"error.failureMessageWithLogPath" = "%1$@\nログ: %2$@";
+"error.speechAnalyzerUnavailable" = "オンデバイス認識エンジン（SpeechAnalyzer）がこの環境で利用できません。サーバー方式を選択するか、対応OSで実行してください。";
+"error.fileSelectionFailed" = "ファイル選択に失敗: %@";
+
+"source.dropPrompt" = "クリックしてファイル選択\nまたはドラッグ&ドロップ";
+
+"button.analyzing" = "解析中...";
+"button.reanalyze" = "再解析";
+"button.clearFile" = "ファイルをクリア";
+"button.exportText" = "テキスト出力";
+
+"help.clearFile" = "ファイルをクリアします";
+
+"search.placeholder" = "検索ワード";
+"search.partialMatch" = "部分一致";
+"search.results" = "検索結果";
+
+"count.items" = "%ld件";
+
+"transcript.title" = "文字起こし";
+
+"export.txtThreshold" = "TXT改行閾値";
+"export.panel.title" = "文字起こしテキストを保存";
+"export.format.title" = "書き出し形式を選択";
+"export.format.message" = "文字起こしを TXT または SRT で保存できます。";
+"export.txt.header.transcript" = "文字起こし";
+"export.txt.header.timedWords" = "タイム付き単語";
+
+"dictionary.title" = "用語辞書";
+"dictionary.termPlaceholder" = "登録語";
+"dictionary.aliasesPlaceholder" = "同義語（カンマ区切り）";
+"dictionary.empty" = "登録された用語はありません";
+
+"playback.playing" = "再生中";
+"playback.stopped" = "停止中";
+
+"common.save" = "保存";
+"common.cancel" = "キャンセル";
+"time.seconds" = "秒";

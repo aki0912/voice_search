@@ -17,9 +17,9 @@ final class TranscriptionViewModel: ObservableObject {
         var displayLabel: String {
             switch self {
             case .onDevice:
-                return "オンデバイス"
+                return AppL10n.text("recognition.mode.onDevice")
             case .server:
-                return "サーバー"
+                return AppL10n.text("recognition.mode.server")
             }
         }
     }
@@ -29,7 +29,7 @@ final class TranscriptionViewModel: ObservableObject {
     @Published var transcript: [TranscriptWord] = []
     @Published var displayTranscript: [TranscriptWord] = []
     @Published var queue: [URL] = []
-    @Published var statusText: String = "ファイルをドラッグしてください"
+    @Published var statusText: String = AppL10n.text("status.dragFile")
     @Published var isAnalyzing = false
     @Published var query: String = ""
     @Published var isContainsMatchMode: Bool = true
@@ -49,7 +49,7 @@ final class TranscriptionViewModel: ObservableObject {
         didSet {
             guard recognitionMode != oldValue else { return }
             guard sourceURL != nil, !isAnalyzing else { return }
-            statusText = "認識方式を\(recognitionMode.displayLabel)に変更しました（再解析で反映）"
+            statusText = AppL10n.format("status.modeChanged", recognitionMode.displayLabel)
         }
     }
 
@@ -106,7 +106,10 @@ final class TranscriptionViewModel: ObservableObject {
             try FileManager.default.createDirectory(at: fileDictionaryURL.deletingLastPathComponent(), withIntermediateDirectories: true)
             loadDictionary()
         } catch {
-            errorMessage = "設定保存先を用意できませんでした: \(error.localizedDescription)"
+            errorMessage = AppL10n.format(
+                "error.prepareSettingsDirectory",
+                error.localizedDescription
+            )
         }
     }
 
@@ -151,7 +154,10 @@ final class TranscriptionViewModel: ObservableObject {
                 queue.append(url)
                 hasNewFiles = true
             } catch {
-                errorMessage = "ドロップデータの読み込みに失敗: \(error.localizedDescription)"
+                errorMessage = AppL10n.format(
+                    "error.loadDroppedData",
+                    error.localizedDescription
+                )
             }
         }
 
@@ -182,7 +188,7 @@ final class TranscriptionViewModel: ObservableObject {
         isVideoSource = false
         isDropTargeted = false
         errorMessage = nil
-        statusText = "ファイルをドラッグしてください"
+        statusText = AppL10n.text("status.dragFile")
         detachTimeObserver()
         player = nil
     }
@@ -210,9 +216,13 @@ final class TranscriptionViewModel: ObservableObject {
         isVideoSource = isVideoFile(url)
 
         if !queue.isEmpty {
-            statusText = "\(1 + queue.count)件中現在処理: \(url.lastPathComponent)"
+            statusText = AppL10n.format(
+                "status.processingQueuedFile",
+                1 + queue.count,
+                url.lastPathComponent
+            )
         } else {
-            statusText = "解析中: \(url.lastPathComponent)"
+            statusText = AppL10n.format("status.analyzingFile", url.lastPathComponent)
         }
 
         let request = TranscriptionRequest(
@@ -248,14 +258,18 @@ final class TranscriptionViewModel: ObservableObject {
             let itemCount = transcript.count
             let modeText = recognitionModeLabel(from: output.diagnostics)
             if itemCount == 0 {
-                statusText = "文字起こし結果が空です"
+                statusText = AppL10n.text("status.emptyTranscript")
             } else if let modeText {
-                statusText = "\(itemCount)語を抽出（\(modeText)）"
+                statusText = AppL10n.format("status.extractedWordsWithMode", itemCount, modeText)
             } else {
-                statusText = "\(itemCount)語を抽出"
+                statusText = AppL10n.format("status.extractedWords", itemCount)
             }
             if let sourceDuration = output.duration, sourceDuration > 30, itemCount <= 3 {
-                errorMessage = "抽出語数が少ない結果です（\(itemCount)語 / 約\(Int(sourceDuration))秒）。言語設定や音声品質の影響が考えられます。"
+                errorMessage = AppL10n.format(
+                    "error.lowWordCount",
+                    itemCount,
+                    Int(sourceDuration)
+                )
             }
 
             performSearch()
@@ -273,7 +287,7 @@ final class TranscriptionViewModel: ObservableObject {
                 formattedMessage: formattedMessage,
                 failureLogURL: failureLogURL
             )
-            statusText = "文字起こしに失敗（\(recognitionMode.displayLabel)）"
+            statusText = AppL10n.format("status.transcriptionFailed", recognitionMode.displayLabel)
         }
     }
 
@@ -404,15 +418,15 @@ final class TranscriptionViewModel: ObservableObject {
 
     func exportTranscriptToFile() {
         guard !transcript.isEmpty else {
-            errorMessage = "書き出す文字起こしがありません"
+            errorMessage = AppL10n.text("error.noTranscriptToExport")
             return
         }
 
         guard let format = promptExportFormat() else { return }
 
         let panel = NSSavePanel()
-        panel.title = "文字起こしテキストを保存"
-        panel.prompt = "保存"
+        panel.title = AppL10n.text("export.panel.title")
+        panel.prompt = AppL10n.text("common.save")
         panel.canCreateDirectories = true
         panel.isExtensionHidden = false
         if format == .txt {
@@ -428,9 +442,9 @@ final class TranscriptionViewModel: ObservableObject {
             let text = transcriptTextContent(format: format)
             try text.write(to: destinationURL, atomically: true, encoding: .utf8)
             errorMessage = nil
-            statusText = "テキストを書き出しました: \(destinationURL.lastPathComponent)"
+            statusText = AppL10n.format("status.exportedText", destinationURL.lastPathComponent)
         } catch {
-            errorMessage = "テキスト書き出しに失敗: \(error.localizedDescription)"
+            errorMessage = AppL10n.format("error.exportFailed", error.localizedDescription)
         }
     }
 
@@ -525,7 +539,7 @@ final class TranscriptionViewModel: ObservableObject {
             let decoded = try JSONDecoder().decode([UserDictionaryEntry].self, from: data)
             dictionaryEntries = decoded
         } catch {
-            errorMessage = "辞書の読み込みに失敗: \(error.localizedDescription)"
+            errorMessage = AppL10n.format("error.dictionaryLoadFailed", error.localizedDescription)
         }
     }
 
@@ -534,7 +548,7 @@ final class TranscriptionViewModel: ObservableObject {
             let data = try JSONEncoder().encode(dictionaryEntries)
             try data.write(to: fileDictionaryURL, options: .atomic)
         } catch {
-            errorMessage = "辞書の保存に失敗: \(error.localizedDescription)"
+            errorMessage = AppL10n.format("error.dictionarySaveFailed", error.localizedDescription)
         }
     }
 
@@ -593,11 +607,11 @@ final class TranscriptionViewModel: ObservableObject {
 
     private func promptExportFormat() -> TranscriptExportFormat? {
         let alert = NSAlert()
-        alert.messageText = "書き出し形式を選択"
-        alert.informativeText = "文字起こしを TXT または SRT で保存できます。"
+        alert.messageText = AppL10n.text("export.format.title")
+        alert.informativeText = AppL10n.text("export.format.message")
         alert.addButton(withTitle: "SRT")
         alert.addButton(withTitle: "TXT")
-        alert.addButton(withTitle: "キャンセル")
+        alert.addButton(withTitle: AppL10n.text("common.cancel"))
 
         let response = alert.runModal()
         switch response {
@@ -633,10 +647,10 @@ final class TranscriptionViewModel: ObservableObject {
         }.joined(separator: "\n")
 
         return """
-        Transcript
+        \(AppL10n.text("export.txt.header.transcript"))
         \(plain)
 
-        Timed Words
+        \(AppL10n.text("export.txt.header.timedWords"))
         \(timed)
         """
     }
@@ -713,9 +727,9 @@ final class TranscriptionViewModel: ObservableObject {
         let mode = line.replacingOccurrences(of: "recognitionMode: ", with: "")
         switch mode {
         case "onDeviceOnly", "onDeviceOnlyNoFallback", "onDeviceSpeechAnalyzer":
-            return "オンデバイス"
+            return AppL10n.text("recognition.mode.onDevice")
         case "serverOnly":
-            return "サーバー"
+            return AppL10n.text("recognition.mode.server")
         default:
             return mode
         }
@@ -835,7 +849,7 @@ final class TranscriptionViewModel: ObservableObject {
         failureLogURL: URL?
     ) -> String {
         guard let failureLogURL else { return formattedMessage }
-        return "\(formattedMessage)\nログ: \(failureLogURL.path)"
+        return AppL10n.format("error.failureMessageWithLogPath", formattedMessage, failureLogURL.path)
     }
 
     private func buildTranscriptionService(for mode: RecognitionMode) -> any TranscriptionService {
@@ -847,7 +861,7 @@ final class TranscriptionViewModel: ObservableObject {
                 return SpeechAnalyzerTranscriptionService()
             }
             return FailingTranscriptionService(
-                message: "オンデバイス認識エンジン（SpeechAnalyzer）がこの環境で利用できません。サーバー方式を選択するか、対応OSで実行してください。"
+                message: AppL10n.text("error.speechAnalyzerUnavailable")
             )
         }
     }

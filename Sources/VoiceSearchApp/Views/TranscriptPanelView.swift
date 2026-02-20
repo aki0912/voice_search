@@ -44,7 +44,7 @@ struct TranscriptPanelView: View {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.secondary)
                     .font(.footnote)
-                TextField("検索ワード", text: $viewModel.query)
+                TextField(AppL10n.text("search.placeholder"), text: $viewModel.query)
                     .textFieldStyle(.plain)
                     .focused($isSearchFieldFocused)
                     .onSubmit { viewModel.performSearch() }
@@ -65,7 +65,7 @@ struct TranscriptPanelView: View {
             .background(Color(nsColor: .controlBackgroundColor))
             .clipShape(RoundedRectangle(cornerRadius: 6))
 
-            Toggle("部分一致", isOn: $viewModel.isContainsMatchMode)
+            Toggle(AppL10n.text("search.partialMatch"), isOn: $viewModel.isContainsMatchMode)
                 .toggleStyle(.switch)
                 .controlSize(.small)
                 .onChange(of: viewModel.isContainsMatchMode) { _ in
@@ -79,11 +79,11 @@ struct TranscriptPanelView: View {
     private var searchResultsPanel: some View {
         VStack(spacing: 0) {
             HStack {
-                Label("検索結果", systemImage: "magnifyingglass")
+                Label(AppL10n.text("search.results"), systemImage: "magnifyingglass")
                     .font(.footnote)
                     .fontWeight(.medium)
                     .foregroundStyle(.secondary)
-                Text("\(viewModel.searchHits.count)件")
+                Text(AppL10n.format("count.items", viewModel.searchHits.count))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 6)
@@ -120,12 +120,12 @@ struct TranscriptPanelView: View {
     private var transcriptPanel: some View {
         VStack(spacing: 0) {
             HStack {
-                Label("文字起こし", systemImage: "text.word.spacing")
+                Label(AppL10n.text("transcript.title"), systemImage: "text.word.spacing")
                     .font(.footnote)
                     .fontWeight(.medium)
                     .foregroundStyle(.secondary)
                 if !viewModel.displayTranscript.isEmpty {
-                    Text("\(viewModel.displayTranscript.count)件")
+                    Text(AppL10n.format("count.items", viewModel.displayTranscript.count))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 6)
@@ -192,7 +192,7 @@ struct TranscriptPanelView: View {
         HStack(spacing: 8) {
             Spacer(minLength: 0)
 
-            Text("TXT改行閾値")
+            Text(AppL10n.text("export.txtThreshold"))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             TextField(
@@ -210,14 +210,14 @@ struct TranscriptPanelView: View {
             .onChange(of: viewModel.txtPauseLineBreakThreshold) { newValue in
                 viewModel.updateTxtPauseLineBreakThreshold(newValue)
             }
-            Text("秒")
+            Text(AppL10n.text("time.seconds"))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
             Button {
                 viewModel.exportTranscriptToFile()
             } label: {
-                Label("テキスト出力", systemImage: "square.and.arrow.up")
+                Label(AppL10n.text("button.exportText"), systemImage: "square.and.arrow.up")
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.regular)

@@ -8,6 +8,7 @@ let voiceSearchAppInfoPlistPath = "AppResources/Info.plist"
 
 let package = Package(
     name: "VoiceSearchCore",
+    defaultLocalization: "ja",
     platforms: [.macOS(.v13)],
     products: [
         .library(
@@ -29,17 +30,26 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "VoiceSearchCore"
+            name: "VoiceSearchCore",
+            resources: [
+                .process("Resources"),
+            ]
         ),
         .target(
             name: "VoiceSearchServices",
             dependencies: ["VoiceSearchCore"],
-            path: "Sources/VoiceSearchApp/Services"
+            path: "Sources/VoiceSearchApp/Services",
+            resources: [
+                .process("Resources"),
+            ]
         ),
         .executableTarget(
             name: "VoiceSearchApp",
             dependencies: ["VoiceSearchCore", "VoiceSearchServices"],
             exclude: ["Services"],
+            resources: [
+                .process("Resources"),
+            ],
             linkerSettings: [
                 .linkedFramework("AVKit"),
                 .unsafeFlags([
@@ -53,6 +63,9 @@ let package = Package(
         .executableTarget(
             name: "VoiceSearchCLI",
             dependencies: ["VoiceSearchCore", "VoiceSearchServices"],
+            resources: [
+                .process("Resources"),
+            ],
             linkerSettings: [
                 .unsafeFlags([
                     "-Xlinker", "-sectcreate",

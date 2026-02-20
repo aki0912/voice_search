@@ -1,0 +1,7 @@
+"failure.headline" = "Transcription failed (%@)";
+"failure.cause" = "Cause: %@";
+"failure.hint" = "Hint: %@";
+"failure.hint.authorization" = "Check System Settings > Privacy & Security > Speech Recognition and confirm access is allowed.";
+"failure.hint.noAudioTrack" = "Please provide a file with an audio track. For video, make sure audio is included.";
+"failure.hint.unsupportedLocale" = "Change the recognition language and verify that the target language is available.";
+"failure.hint.asset" = "Wait until speech recognition assets are ready, then run again.";
