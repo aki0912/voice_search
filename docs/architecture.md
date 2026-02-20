@@ -1,57 +1,59 @@
-# voice_search アーキテクチャ（現状）
+# voice_search Architecture (Current)
 
-## レイヤ構成
+Japanese version: `architecture.ja.md`
 
-### 1. Core（純粋ロジック）
-- モジュール: `VoiceSearchCore`
-- 役割:
-  - `TranscriptWord` / `SearchHit` などの共通モデル
-  - 検索 (`TranscriptSearchService`)
-  - 正規化 (`DefaultTokenNormalizer`)
-  - 表示グルーピング (`TranscriptDisplayGrouper`)
-  - TXT整形 (`TranscriptPlainTextFormatter`)
-  - 文字起こしパイプライン (`TranscriptionPipeline`)
-- 特徴:
-  - UI / Speech framework 依存なし
+## Layer Structure
 
-### 2. Services（OS連携）
-- 実装:
+### 1. Core (Pure Logic)
+- Module: `VoiceSearchCore`
+- Responsibilities:
+  - Shared models such as `TranscriptWord` / `SearchHit`
+  - Search (`TranscriptSearchService`)
+  - Normalization (`DefaultTokenNormalizer`)
+  - Display grouping (`TranscriptDisplayGrouper`)
+  - TXT formatting (`TranscriptPlainTextFormatter`)
+  - Transcription pipeline (`TranscriptionPipeline`)
+- Characteristics:
+  - No dependency on UI or Speech frameworks
+
+### 2. Services (OS Integration)
+- Implementations:
   - `SpeechAnalyzerTranscriptionService`
   - `SpeechURLTranscriptionService`
-  - `HybridTranscriptionService`（内部比較やサービス選択用途）
-- 役割:
-  - Speech/AVFoundationと連携して `TranscriptionOutput` を生成
-  - Coreで扱える `TimeInterval` ベースへ正規化
-- 方針:
-  - UIで選択された認識方式を尊重
-  - ユーザー意図を変える自動フォールバックはしない
+  - `HybridTranscriptionService` (internal comparison/service-selection use)
+- Responsibilities:
+  - Integrate Speech/AVFoundation and produce `TranscriptionOutput`
+  - Normalize data into `TimeInterval`-based values used by Core
+- Policy:
+  - Respect the recognition mode selected in UI
+  - Do not auto-fallback in ways that change user intent
 
-### 3. App（Presentation）
-- モジュール: `VoiceSearchApp`
-- 役割:
-  - SwiftUI表示
-  - ドロップ受付 / 再解析 / クリア
-  - 再生制御 / シーク
-  - 検索とハイライト表示
-  - 用語登録と永続化
-  - TXT/SRT書き出し
+### 3. App (Presentation)
+- Module: `VoiceSearchApp`
+- Responsibilities:
+  - SwiftUI presentation
+  - Drop handling / re-run / clear
+  - Playback control / seek
+  - Search and highlight rendering
+  - Dictionary registration and persistence
+  - TXT/SRT export
 
-## 主なデータフロー
-1. ドラッグ&ドロップでファイルURLを取得
-2. `TranscriptionViewModel` が選択モードに応じたサービスを構築
-3. `TranscriptionPipeline` 実行で `TranscriptWord[]` を取得
-4. 表示用に `displayTranscript`（グルーピング）を生成
-5. 検索時は `transcript` を対象に `SearchHit[]` を生成
-6. ヒット/行選択で `startTime` へ seek して再生
+## Main Data Flow
+1. Acquire file URL via drag-and-drop
+2. `TranscriptionViewModel` builds service by selected mode
+3. Execute `TranscriptionPipeline` and obtain `TranscriptWord[]`
+4. Build grouped `displayTranscript` for rendering
+5. On search, generate `SearchHit[]` from `transcript`
+6. On hit/line selection, seek to `startTime` and play
 
-## 主要な状態管理
+## Key State Management
 - `TranscriptionViewModel`
-  - 入力状態: `sourceURL`, `queue`, `isAnalyzing`
-  - 再生状態: `isPlaying`, `currentTime`, `sourceDuration`, `scrubPosition`
-  - 表示状態: `transcript`, `displayTranscript`, `searchHits`
-  - 設定状態: `recognitionMode`, `txtPauseLineBreakThreshold`, `dictionaryEntries`
+  - Input state: `sourceURL`, `queue`, `isAnalyzing`
+  - Playback state: `isPlaying`, `currentTime`, `sourceDuration`, `scrubPosition`
+  - Display state: `transcript`, `displayTranscript`, `searchHits`
+  - Settings state: `recognitionMode`, `txtPauseLineBreakThreshold`, `dictionaryEntries`
 
-## エラー処理方針
-- 失敗時は明示的にエラーメッセージを表示
-- フォールバックではなく、選択モードの失敗理由を返す
-- 失敗ログは書き込み可能な場合に保存し、パスを表示
+## Error Handling Policy
+- Show explicit error messages on failure
+- Return failure reasons for selected mode (instead of fallback)
+- Persist failure logs when writable and show log path

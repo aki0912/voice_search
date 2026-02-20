@@ -1,40 +1,42 @@
-# TDDガイド（運用版）
+# TDD Guide (Operational)
 
-## 基本原則
-- 仕様を先にテストで固定する
-- 最小実装で通す
-- 通った後に必要最小のリファクタを行う
+Japanese version: `TDD.ja.md`
 
-## 現在のテストスイート
+## Core Principles
+- Lock behavior with tests first
+- Implement the minimum needed to pass
+- Refactor minimally after tests pass
+
+## Current Test Suites
 - `Tests/VoiceSearchCoreTests`
-  - 検索（完全一致/部分一致）
-  - 辞書・表記ゆれ（ひらがな/カタカナ）
-  - 表示グルーピング
-  - TXT整形（改行しきい値含む）
-  - パイプライン正規化
+  - Search (exact/partial)
+  - Dictionary and notation variance (Hiragana/Katakana)
+  - Display grouping
+  - TXT formatting (including line-break threshold)
+  - Pipeline normalization
 - `Tests/VoiceSearchServicesTests`
-  - 認可判定
-  - サービス選択
-  - 音声入力前処理
-  - 結果集約
+  - Authorization decisions
+  - Service selection
+  - Audio input preprocessing
+  - Result aggregation
 - `Tests/VoiceSearchAppTests`
-  - ViewModelの失敗時リセット
-  - 検索文脈表示
-  - しきい値更新クランプ
-  - クリア操作リセット
+  - ViewModel failure-state reset
+  - Search context rendering
+  - Threshold update clamping
+  - Clear-action reset
 
-## 実装時のルール
-1. 仕様変更点を先にテストケース化
-2. 実装
-3. `swift test`
-4. 失敗があれば修正して再実行
+## Rules During Implementation
+1. Add/update test cases for behavior changes first
+2. Implement
+3. Run `swift test`
+4. If failing, fix and rerun
 
-## 現在の必須ゲート
-- コード変更がある場合、`swift test` 成功を完了条件とする
-- 失敗状態で「完了」としない
+## Mandatory Current Gate
+- For any code change, completion requires `swift test` success
+- Never mark complete while tests are failing
 
-## テスト追加の優先候補
-1. `MainView` のUIレイアウト回帰（スナップショット/UITest）
-2. 長尺メディア時のスクラブ体感回帰
-3. 失敗ログ出力のI/O異常系
-4. CLIの診断出力フォーマット固定化
+## Priority Candidates for New Tests
+1. `MainView` UI layout regression (snapshot/UITest)
+2. Perceived scrub regression on long media
+3. Failure log output I/O abnormal paths
+4. CLI diagnosis output format stability

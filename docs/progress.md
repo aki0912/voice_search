@@ -1,32 +1,34 @@
-# voice_search 進捗メモ（2026-02-15時点）
+# voice_search Progress Notes (as of 2026-02-15)
 
-## 現在の到達点
-- 音声/動画ファイルのドラッグ&ドロップ取り込み
-- 文字起こし方式の切替（`オンデバイス` / `サーバー`）
-- 検索（部分一致デフォルトON）と再生ジャンプ
-- 検索結果の文脈表示 + マッチ語ハイライト
-- 音声/動画再生、再生位置シーク、現在位置ハイライト追従
-- 用語登録（登録語/同義語）と永続化
-- TXT/SRT書き出し
-- TXT書き出しの改行しきい値（秒）をUIで調整
-- 読み込み後はドロップエリア非表示、`×` でクリアすると再表示
+Japanese version: `progress.ja.md`
 
-## 直近で反映した仕様
-- 認識時のフォールバックは行わない（ユーザー選択モードを厳守）
-- ひらがな検索とカタカナ語の相互マッチ
-- 部分一致検索で逆方向包含を抑止（例: `です` で `で` はヒットしない）
-- 表示用テキストを日本語向けにグルーピング
-- 長尺音声のスクラブ挙動を改善（ドラッグ中はUI追従、リリース時に確定seek）
+## Current State
+- Drag-and-drop import for audio/video files
+- Recognition mode switching (`On-device` / `Server`)
+- Search (partial match enabled by default) with playback jump
+- Context line display + matched-term highlight in search results
+- Audio/video playback, seek, and current-position highlight tracking
+- Dictionary registration (canonical/aliases) with persistence
+- TXT/SRT export
+- UI-configurable TXT line-break threshold (seconds)
+- Drop area hides after load; clear (`×`) returns UI to initial state
 
-## テスト状況
-- `swift test` で回帰を運用
-- 現在 `40 tests` が通過中
+## Recently Applied Behavior
+- No fallback during recognition (strictly respects selected mode)
+- Cross-match between Hiragana query and Katakana words
+- Prevent reverse containment in partial mode (e.g., query `desu` does not match `de`)
+- Japanese-friendly grouping for display transcript
+- Improved long-audio scrub behavior (live UI tracking while dragging, final seek on release)
 
-## 現在の運用ルール
-- 実装変更時は `swift test` を必ず実行し、失敗を解消してから完了扱い
-- 失敗時は原因を可視化し、意図しない自動フォールバックは行わない
+## Test Status
+- Regression managed through `swift test`
+- Currently passing: `40 tests`
 
-## 次の候補
-- 配布向け整備（署名・公証・DMG）
-- UIテスト/E2E（主要導線: 読み込み/検索/再生/書き出し）
-- 失敗ログの参照導線改善（UIから開けるようにする）
+## Current Operational Rules
+- Any implementation change must run `swift test`, and failures must be fixed before completion
+- On failure, expose cause clearly and avoid unintended automatic fallback
+
+## Next Candidates
+- Distribution prep (signing/notarization/DMG)
+- UI test/E2E coverage for key flows (load/search/playback/export)
+- Better failure-log access from UI

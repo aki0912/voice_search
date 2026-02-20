@@ -1,25 +1,27 @@
-# voice_search ロードマップ（更新版）
+# voice_search Roadmap (Updated)
 
-## フェーズ1: MVP（完了）
-- Coreロジック（正規化、検索、辞書、再生位置推定）
-- 文字起こしパイプライン
-- macOS UI（ドロップ、検索、再生、辞書、書き出し）
+Japanese version: `roadmap.ja.md`
 
-## フェーズ2: 実用化（完了）
-- 認識方式の明示切替（オンデバイス/サーバー）
-- フォールバック禁止ポリシー
-- 検索文脈表示 + ハイライト
-- TXT/SRT出力とTXT改行しきい値調整
-- クリア導線と状態初期化
-- ひらがな/カタカナの検索表記ゆれ対応
+## Phase 1: MVP (Completed)
+- Core logic (normalization, search, dictionary, playback position estimation)
+- Transcription pipeline
+- macOS UI (drop/search/playback/dictionary/export)
 
-## フェーズ3: 配布準備（次の優先）
-1. `Release` ビルド手順の固定化
-2. `Developer ID` 署名 + Notarization
-3. 配布形式（DMG）と更新運用方針の決定
+## Phase 2: Practical Usability (Completed)
+- Explicit recognition mode switching (on-device/server)
+- No-fallback policy
+- Search context display + highlight
+- TXT/SRT output with TXT line-break threshold controls
+- Clear action and consistent state reset
+- Hiragana/Katakana query normalization support
 
-## フェーズ4: 品質強化（中期）
-1. UI/E2Eテストの追加
-2. 長尺メディアでの再生・スクロール追従の継続改善
-3. 失敗ログのUI導線強化（ログ参照/共有）
-4. パフォーマンス計測とボトルネック可視化
+## Phase 3: Distribution Readiness (Next Priority)
+1. Lock down `Release` build procedure
+2. `Developer ID` signing + notarization
+3. Decide distribution format (DMG) and update strategy
+
+## Phase 4: Quality Reinforcement (Mid-term)
+1. Add UI/E2E tests
+2. Continue improving playback/scroll following for long media
+3. Improve UI access/sharing flow for failure logs
+4. Add performance measurement and bottleneck visibility

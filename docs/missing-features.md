@@ -1,42 +1,44 @@
-# voice_search 不足機能メモ（2026-02-20）
+# voice_search Missing Features (2026-02-20)
 
-## 目的
-- 現在の実装に対して、実利用で不足しやすい機能を優先度順に整理する。
+Japanese version: `missing-features.ja.md`
 
-## 優先度高（先にやる価値が高い）
-1. 認識言語の選択UI（+自動判定）
-- 現状は `locale` をUIから指定できず、多言語音声で精度低下しやすい。
+## Purpose
+- Organize missing features in priority order based on practical usage gaps.
 
-2. キュー管理画面
-- 複数ファイル投入時の並び替え・削除・再試行・キャンセルができない。
+## High Priority (Best immediate impact)
+1. Recognition language selector UI (+ auto-detection)
+- `locale` cannot be explicitly selected from UI today, which can reduce multilingual accuracy.
 
-3. 文字起こしの手動編集
-- 誤認識を修正して再検索・再出力できると実用性が上がる。
+2. Queue management screen
+- No ability to reorder/remove/retry/cancel queued files.
 
-## 優先度中（使い勝手の底上げ）
-4. 話者分離（話者ラベル）
-- 会議音声で「誰が話したか」を追えるようにする。
+3. Manual transcript editing
+- Correcting recognition errors before re-search/export significantly improves usability.
 
-5. セッション保存/再開
-- ファイル、検索条件、辞書、再生位置を復元できるようにする。
+## Medium Priority (Usability improvement)
+4. Speaker diarization (speaker labels)
+- Helps track who said what in meeting audio.
 
-6. 信頼度表示（低信頼ハイライト）
-- 確認すべき箇所を視覚的に把握しやすくする。
+5. Session save/resume
+- Restore file, search conditions, dictionary, and playback position.
 
-## 優先度低（連携・運用強化）
-7. 出力形式の拡張（VTT / JSON / CSV）
-- 字幕ツール、分析基盤、外部連携で使いやすくする。
+6. Confidence display (low-confidence highlight)
+- Makes uncertain parts easier to review.
 
-8. GUI診断ビュー
-- 失敗ログの閲覧・比較・再実行導線を画面で完結させる。
+## Low Priority (Integration/operations)
+7. More export formats (`VTT` / `JSON` / `CSV`)
+- Improves compatibility with subtitle tools, analytics pipelines, and external systems.
 
-9. キーボードショートカット強化
-- 再生/検索移動/ジャンプ操作の効率を上げる。
+8. GUI diagnosis view
+- Complete log viewing/comparison/rerun flow in UI.
 
-10. A/B区間ループ再生
-- 校正時の聞き直しを高速化する。
+9. More keyboard shortcuts
+- Improves playback/search navigation efficiency.
 
-## 推奨実装順
-1. 認識言語の選択UI
-2. キュー管理画面
-3. 文字起こしの手動編集
+10. A/B loop playback
+- Speeds up repeated listening during transcript QA.
+
+## Recommended Implementation Order
+1. Recognition language selector UI
+2. Queue management screen
+3. Manual transcript editing

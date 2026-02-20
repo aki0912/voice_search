@@ -1,79 +1,84 @@
 # voice_search
 
-macOS向けの音声/動画文字起こし・検索・再生ジャンプアプリです。
+A macOS app for audio/video transcription, search, and playback jump.
 
-## できること
-- 音声/動画ファイルのドラッグ&ドロップ取り込み
-- `オンデバイス` / `サーバー` の認識方式切替（自動フォールバックなし）
-- 検索（部分一致がデフォルトON）
-- 検索結果から該当時刻へジャンプ再生
-- 検索結果に文脈テキスト表示 + マッチ語ハイライト
-- 音声/動画再生（再生/停止ボタン、シークバー）
-- 文字起こしテキスト書き出し（TXT / SRT）
-- TXT書き出し時の改行しきい値（秒）をUIから調整
-- 用語登録（登録語/同義語）
-- ひらがな検索とカタカナ語の相互マッチ
+Japanese version: `README.ja.md`
+Japanese variants of other docs are available with the `.ja.md` suffix.
 
-## 画面の挙動
-- メディア未読み込み時はドラッグ&ドロップ領域を表示
-- 読み込み後はドロップ領域を隠し、ファイル情報カードを表示
-- ファイル名の横に `×`（クリア）ボタン
-- クリア後は初期状態に戻り、ドロップ領域を再表示
+## Features
+- Drag-and-drop import for audio/video files
+- Explicit recognition mode switch: `On-device` / `Server` (no automatic fallback)
+- Search (partial match enabled by default)
+- Jump playback to matched timestamps
+- Context line display + matched-term highlight in search results
+- Audio/video playback (play/pause button, seek bar)
+- Transcript export (`TXT` / `SRT`)
+- Configurable TXT line-break threshold (seconds) from UI
+- Custom term dictionary (canonical term / aliases)
+- Cross-match between Hiragana queries and Katakana words
 
-## 構成
-- `Sources/VoiceSearchCore`: 正規化・検索・フォーマッタなどコア
-- `Sources/VoiceSearchApp`: macOS SwiftUIアプリ本体
-- `Sources/VoiceSearchCLI`: UIなし実行用CLI
-- `Tests/VoiceSearchCoreTests`: コアロジックのテスト
-- `Tests/VoiceSearchAppTests`: ViewModel周辺のテスト
-- `Tests/VoiceSearchServicesTests`: 認識サービス周辺のテスト
+## UI Behavior
+- Shows a drag-and-drop area when no media is loaded
+- Hides the drop area and shows a loaded-file card after import
+- Shows a clear (`×`) button next to the file name
+- Returns to initial state and re-shows the drop area after clear
 
-## 実行（推奨）
+## Project Structure
+- `Sources/VoiceSearchCore`: core logic (normalization, search, formatters)
+- `Sources/VoiceSearchApp`: macOS SwiftUI app
+- `Sources/VoiceSearchCLI`: CLI tool (no UI)
+- `Tests/VoiceSearchCoreTests`: tests for core logic
+- `Tests/VoiceSearchAppTests`: tests around ViewModel/UI behavior
+- `Tests/VoiceSearchServicesTests`: tests around recognition services
+
+## Run (Recommended)
 ```bash
 ./scripts/run-app.sh
 ```
 
-初回起動時に音声認識権限ダイアログが表示されます。拒否した場合は「システム設定 > プライバシーとセキュリティ > 音声認識」で `VoiceSearchApp` を許可してください。
+On first launch, macOS will ask for speech recognition permission.  
+If denied, enable `VoiceSearchApp` in:
+`System Settings > Privacy & Security > Speech Recognition`.
 
-開発用の直接実行:
+Direct run for development:
 ```bash
 swift run VoiceSearchApp
 ```
 
-## CLI（UIなし）
+## CLI (No UI)
 ```bash
 ./scripts/run-cli.sh --input sample2.m4a --mode diagnose --output sample2_diagnostics.txt
 ```
 
-モード:
-- `diagnose`: オンデバイス認識とサーバー認識を両方実行して比較
-- `on-device`: オンデバイスのみ
-- `server`: サーバーのみ
+Modes:
+- `diagnose`: runs both on-device and server recognition, then compares
+- `on-device`: on-device only
+- `server`: server only
 
-## スクリーンショットをREADMEに追加する方法
-1. 画像を `docs/images/` に置く（例: `docs/images/main.png`）。
-2. `README.md` にMarkdownで追記する。
+## Adding Screenshots to README
+1. Put image files under `docs/images/` (example: `docs/images/main.png`).
+2. Add a Markdown image entry to `README.md`.
 
 ```md
-![メイン画面](docs/images/main.png)
+![Main Screen](docs/images/main.png)
 ```
 
-3. 画像サイズを固定したい場合はHTMLタグを使う。
+3. Use HTML if you want to fix image size.
 
 ```html
-<img src="docs/images/main.png" alt="メイン画面" width="960" />
+<img src="docs/images/main.png" alt="Main Screen" width="960" />
 ```
 
-ポイント:
-- パスはREADMEからの相対パスで書く
-- ファイル名は英数字とハイフン推奨（例: `search-result-highlight.png`）
-- 画像ファイルもREADMEと一緒にコミットする
+Notes:
+- Use paths relative to `README.md`
+- Prefer file names with ASCII letters/numbers/hyphens (example: `search-result-highlight.png`)
+- Commit image files together with README updates
 
-## 開発メモ
-- コアロジックはTDD中心
-- 認識機能は `TranscriptionService` 経由で差し替え可能
+## Development Notes
+- Core logic is developed with a TDD-first approach
+- Recognition backends are replaceable through `TranscriptionService`
 
-## 参考ドキュメント
+## Related Docs
 1. `docs/progress.md`
 2. `docs/roadmap.md`
 3. `docs/architecture.md`
