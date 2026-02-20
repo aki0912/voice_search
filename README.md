@@ -78,3 +78,4 @@ swift run VoiceSearchApp
 2. `docs/roadmap.md`
 3. `docs/architecture.md`
 4. `docs/TDD.md`
+5. `docs/missing-features.md`
