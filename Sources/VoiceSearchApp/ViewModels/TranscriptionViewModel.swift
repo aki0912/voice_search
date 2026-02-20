@@ -24,6 +24,36 @@ final class TranscriptionViewModel: ObservableObject {
         }
     }
 
+    enum RecognitionLanguage: String, CaseIterable, Identifiable {
+        case automatic
+        case japanese
+        case englishUS
+
+        var id: String { rawValue }
+
+        var displayLabel: String {
+            switch self {
+            case .automatic:
+                return AppL10n.text("recognition.language.automatic")
+            case .japanese:
+                return AppL10n.text("recognition.language.japanese")
+            case .englishUS:
+                return AppL10n.text("recognition.language.englishUS")
+            }
+        }
+
+        var locale: Locale? {
+            switch self {
+            case .automatic:
+                return nil
+            case .japanese:
+                return Locale(identifier: "ja-JP")
+            case .englishUS:
+                return Locale(identifier: "en-US")
+            }
+        }
+    }
+
     @Published var sourceURL: URL?
     @Published var isVideoSource = false
     @Published var transcript: [TranscriptWord] = []
@@ -50,6 +80,13 @@ final class TranscriptionViewModel: ObservableObject {
             guard recognitionMode != oldValue else { return }
             guard sourceURL != nil, !isAnalyzing else { return }
             statusText = AppL10n.format("status.modeChanged", recognitionMode.displayLabel)
+        }
+    }
+    @Published var recognitionLanguage: RecognitionLanguage = .automatic {
+        didSet {
+            guard recognitionLanguage != oldValue else { return }
+            guard sourceURL != nil, !isAnalyzing else { return }
+            statusText = AppL10n.format("status.languageChanged", recognitionLanguage.displayLabel)
         }
     }
 
@@ -225,20 +262,13 @@ final class TranscriptionViewModel: ObservableObject {
             statusText = AppL10n.format("status.analyzingFile", url.lastPathComponent)
         }
 
-        let request = TranscriptionRequest(
-            sourceURL: url,
-            locale: nil,
-            contextualStrings: transcriptionContextualStrings(),
-            progressHandler: { [weak self] progress in
-                Task { @MainActor [weak self] in
-                    self?.mergeAnalysisProgress(progress)
-                }
-            }
-        )
+        let contextualStrings = transcriptionContextualStrings()
 
         do {
-            let service = buildTranscriptionService(for: recognitionMode)
-            let output = try await pipeline.run(request, service: service)
+            let output = try await transcribeWithSelectedLanguage(
+                sourceURL: url,
+                contextualStrings: contextualStrings
+            )
             rawTranscript = output.words
             applyDictionaryDisplayNormalization()
 
@@ -530,6 +560,153 @@ final class TranscriptionViewModel: ObservableObject {
         guard isAnalyzing else { return }
         let clamped = max(0.02, min(0.98, progress.fractionCompleted))
         analysisProgress = max(analysisProgress, clamped)
+    }
+
+    private func transcribeWithSelectedLanguage(
+        sourceURL: URL,
+        contextualStrings: [String]
+    ) async throws -> TranscriptionOutput {
+        if recognitionLanguage == .automatic {
+            return try await transcribeByAutoDetectingLanguage(
+                sourceURL: sourceURL,
+                contextualStrings: contextualStrings
+            )
+        }
+
+        return try await runTranscription(
+            sourceURL: sourceURL,
+            locale: recognitionLanguage.locale,
+            contextualStrings: contextualStrings
+        )
+    }
+
+    private func transcribeByAutoDetectingLanguage(
+        sourceURL: URL,
+        contextualStrings: [String]
+    ) async throws -> TranscriptionOutput {
+        let candidates = automaticLocaleCandidates()
+        guard !candidates.isEmpty else {
+            return try await runTranscription(
+                sourceURL: sourceURL,
+                locale: Locale.current,
+                contextualStrings: contextualStrings
+            )
+        }
+
+        var bestResult: (locale: Locale, output: TranscriptionOutput, score: Double)?
+        var firstError: Error?
+
+        for (index, locale) in candidates.enumerated() {
+            statusText = AppL10n.format("status.autoDetectingLanguage", displayName(for: locale))
+            do {
+                let output = try await runTranscription(
+                    sourceURL: sourceURL,
+                    locale: locale,
+                    contextualStrings: contextualStrings,
+                    progressMapper: { [total = candidates.count] progress in
+                        let scaled = (Double(index) + progress.fractionCompleted) / Double(total)
+                        return TranscriptionProgress(
+                            fractionCompleted: scaled,
+                            recognizedDuration: progress.recognizedDuration,
+                            totalDuration: progress.totalDuration
+                        )
+                    }
+                )
+
+                let score = autoDetectionScore(for: output)
+                if let current = bestResult {
+                    if score > current.score {
+                        bestResult = (locale, output, score)
+                    }
+                } else {
+                    bestResult = (locale, output, score)
+                }
+
+                if output.words.count >= 40 {
+                    break
+                }
+            } catch {
+                if firstError == nil {
+                    firstError = error
+                }
+            }
+        }
+
+        if let bestResult {
+            var diagnostics = bestResult.output.diagnostics
+            diagnostics.append("detectedLocale: \(bestResult.locale.identifier)")
+            diagnostics.append("languageSelection: automatic")
+            return TranscriptionOutput(
+                sourceURL: bestResult.output.sourceURL,
+                words: bestResult.output.words,
+                locale: bestResult.locale,
+                duration: bestResult.output.duration,
+                diagnostics: diagnostics
+            )
+        }
+
+        if let firstError {
+            throw firstError
+        }
+        throw TranscriptionServiceError.emptyTranscript
+    }
+
+    private func runTranscription(
+        sourceURL: URL,
+        locale: Locale?,
+        contextualStrings: [String],
+        progressMapper: @escaping @Sendable (TranscriptionProgress) -> TranscriptionProgress = { $0 }
+    ) async throws -> TranscriptionOutput {
+        let request = TranscriptionRequest(
+            sourceURL: sourceURL,
+            locale: locale,
+            contextualStrings: contextualStrings,
+            progressHandler: { [weak self] progress in
+                let mapped = progressMapper(progress)
+                Task { @MainActor [weak self] in
+                    self?.mergeAnalysisProgress(mapped)
+                }
+            }
+        )
+
+        let service = buildTranscriptionService(for: recognitionMode)
+        return try await pipeline.run(request, service: service)
+    }
+
+    private func automaticLocaleCandidates() -> [Locale] {
+        var seen = Set<String>()
+        var locales: [Locale] = []
+
+        func appendLocale(_ locale: Locale?) {
+            guard let locale else { return }
+            let key = locale.identifier.lowercased()
+            if seen.insert(key).inserted {
+                locales.append(locale)
+            }
+        }
+
+        appendLocale(Locale.current)
+        for preferred in Locale.preferredLanguages.prefix(3) {
+            appendLocale(Locale(identifier: preferred))
+        }
+        appendLocale(Locale(identifier: "ja-JP"))
+        appendLocale(Locale(identifier: "en-US"))
+
+        return locales
+    }
+
+    private func displayName(for locale: Locale) -> String {
+        Locale.current.localizedString(forIdentifier: locale.identifier) ?? locale.identifier
+    }
+
+    private func autoDetectionScore(for output: TranscriptionOutput) -> Double {
+        let wordCount = Double(output.words.count)
+        let coveredDuration = max(0, (output.words.last?.endTime ?? 0) - (output.words.first?.startTime ?? 0))
+        let sourceDuration = max(1, output.duration ?? coveredDuration)
+        let coverageRate = max(0, min(1, coveredDuration / sourceDuration))
+
+        // Prefer outputs with both enough words and broader time coverage.
+        return wordCount + (coverageRate * 100)
     }
 
     private func loadDictionary() {

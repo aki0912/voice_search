@@ -58,6 +58,22 @@ struct MainView: View {
                 .fixedSize()
             }
             .disabled(viewModel.isAnalyzing)
+
+            HStack(spacing: 8) {
+                Text(AppL10n.text("header.recognitionLanguage"))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Picker("", selection: $viewModel.recognitionLanguage) {
+                    ForEach(TranscriptionViewModel.RecognitionLanguage.allCases) { language in
+                        Text(language.displayLabel).tag(language)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .controlSize(.regular)
+                .frame(width: 170)
+            }
+            .disabled(viewModel.isAnalyzing)
         }
     }
 }

@@ -1,12 +1,18 @@
 "app.title" = "Voice Search";
 "header.recognitionMode" = "Recognition Mode";
+"header.recognitionLanguage" = "Language";
 "recognition.mode.onDevice" = "On-device";
 "recognition.mode.server" = "Server";
+"recognition.language.automatic" = "Auto-detect";
+"recognition.language.japanese" = "Japanese (ja-JP)";
+"recognition.language.englishUS" = "English (en-US)";
 
 "status.dragFile" = "Drag and drop a file to start";
 "status.modeChanged" = "Recognition mode changed to %@ (applies on re-run)";
+"status.languageChanged" = "Recognition language changed to %@ (applies on re-run)";
 "status.processingQueuedFile" = "Processing queued file (%ld total): %@";
 "status.analyzingFile" = "Analyzing: %@";
+"status.autoDetectingLanguage" = "Auto-detecting language: %@";
 "status.emptyTranscript" = "No transcript words were extracted";
 "status.extractedWordsWithMode" = "Extracted %ld words (%@)";
 "status.extractedWords" = "Extracted %ld words";

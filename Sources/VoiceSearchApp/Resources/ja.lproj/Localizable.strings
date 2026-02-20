@@ -1,12 +1,18 @@
 "app.title" = "Voice Search";
 "header.recognitionMode" = "認識方式";
+"header.recognitionLanguage" = "認識言語";
 "recognition.mode.onDevice" = "オンデバイス";
 "recognition.mode.server" = "サーバー";
+"recognition.language.automatic" = "自動判定";
+"recognition.language.japanese" = "日本語 (ja-JP)";
+"recognition.language.englishUS" = "英語 (en-US)";
 
 "status.dragFile" = "ファイルをドラッグしてください";
 "status.modeChanged" = "認識方式を%@に変更しました（再解析で反映）";
+"status.languageChanged" = "認識言語を%@に変更しました（再解析で反映）";
 "status.processingQueuedFile" = "%ld件中現在処理: %@";
 "status.analyzingFile" = "解析中: %@";
+"status.autoDetectingLanguage" = "認識言語を自動判定中: %@";
 "status.emptyTranscript" = "文字起こし結果が空です";
 "status.extractedWordsWithMode" = "%ld語を抽出（%@）";
 "status.extractedWords" = "%ld語を抽出";
