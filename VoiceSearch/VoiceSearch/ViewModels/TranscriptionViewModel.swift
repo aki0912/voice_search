@@ -371,6 +371,18 @@ final class TranscriptionViewModel: ObservableObject {
         return hit.displayText
     }
 
+    private func updatePlaybackHighlights(at seconds: TimeInterval) {
+        let newHighlightedIndex = PlaybackLocator.nearestWordIndex(at: seconds, in: transcript)
+        if highlightedIndex != newHighlightedIndex {
+            highlightedIndex = newHighlightedIndex
+        }
+
+        let newDisplayHighlightedIndex = PlaybackLocator.nearestWordIndex(at: seconds, in: displayTranscript)
+        if displayHighlightedIndex != newDisplayHighlightedIndex {
+            displayHighlightedIndex = newDisplayHighlightedIndex
+        }
+    }
+
     func seek(to seconds: TimeInterval) {
         guard let player else { return }
         let clampedSeconds = clampedTime(seconds)
@@ -380,8 +392,7 @@ final class TranscriptionViewModel: ObservableObject {
         player.seek(to: time, toleranceBefore: tolerance, toleranceAfter: tolerance)
         currentTime = clampedSeconds
         scrubPosition = clampedSeconds
-        highlightedIndex = PlaybackLocator.nearestWordIndex(at: clampedSeconds, in: transcript)
-        displayHighlightedIndex = PlaybackLocator.nearestWordIndex(at: clampedSeconds, in: displayTranscript)
+        updatePlaybackHighlights(at: clampedSeconds)
         player.play()
         isPlaying = true
     }
@@ -409,8 +420,7 @@ final class TranscriptionViewModel: ObservableObject {
         let clamped = clampedTime(value)
         scrubPosition = clamped
         currentTime = clamped
-        highlightedIndex = PlaybackLocator.nearestWordIndex(at: clamped, in: transcript)
-        displayHighlightedIndex = PlaybackLocator.nearestWordIndex(at: clamped, in: displayTranscript)
+        updatePlaybackHighlights(at: clamped)
 
         guard let player else { return }
         guard !isScrubbingPlayback else { return }
@@ -435,8 +445,7 @@ final class TranscriptionViewModel: ObservableObject {
         player.seek(to: time, toleranceBefore: tolerance, toleranceAfter: tolerance)
         currentTime = clampedSeconds
         scrubPosition = clampedSeconds
-        highlightedIndex = PlaybackLocator.nearestWordIndex(at: clampedSeconds, in: transcript)
-        displayHighlightedIndex = PlaybackLocator.nearestWordIndex(at: clampedSeconds, in: displayTranscript)
+        updatePlaybackHighlights(at: clampedSeconds)
         if shouldResume {
             player.play()
             isPlaying = true
@@ -500,8 +509,7 @@ final class TranscriptionViewModel: ObservableObject {
                 guard !self.isScrubbingPlayback else { return }
                 self.currentTime = seconds
                 self.scrubPosition = self.clampedTime(seconds)
-                self.highlightedIndex = PlaybackLocator.nearestWordIndex(at: seconds, in: self.transcript)
-                self.displayHighlightedIndex = PlaybackLocator.nearestWordIndex(at: seconds, in: self.displayTranscript)
+                self.updatePlaybackHighlights(at: seconds)
             }
         }
         timeObserverPlayer = player

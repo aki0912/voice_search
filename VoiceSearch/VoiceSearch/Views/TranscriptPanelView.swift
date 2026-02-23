@@ -145,10 +145,12 @@ struct TranscriptPanelView: View {
 
     private var transcriptList: some View {
         ScrollViewReader { proxy in
+            let displayLines = viewModel.displayTranscript
             List(
-                Array(viewModel.displayTranscript.enumerated()),
-                id: \.element.id
-            ) { index, word in
+                displayLines.indices,
+                id: \.self
+            ) { index in
+                let word = displayLines[index]
                 Button {
                     viewModel.jump(toDisplayWordAt: index)
                 } label: {
