@@ -8,6 +8,15 @@
     <string>VoiceSearchCLI</string>
     <key>CFBundleExecutable</key>
     <string>VoiceSearchCLI</string>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>ja</string>
+    <key>CFBundleLocalizations</key>
+    <array>
+        <string>ja</string>
+        <string>en</string>
+    </array>
+    <key>CFBundleAllowMixedLocalizations</key>
+    <true/>
     <key>LSMinimumSystemVersion</key>
     <string>13.0</string>
     <key>NSSpeechRecognitionUsageDescription</key>
