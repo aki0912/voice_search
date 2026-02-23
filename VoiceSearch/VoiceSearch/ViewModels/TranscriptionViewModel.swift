@@ -121,11 +121,11 @@ final class TranscriptionViewModel: ObservableObject {
     }
 
     init(
-        pipeline: TranscriptionPipeline = TranscriptionPipeline(),
+        pipeline: TranscriptionPipeline? = nil,
         appSupportDirectory: URL? = nil,
         failureLogWriter: (any TranscriptionFailureLogWriting)? = nil
     ) {
-        self.pipeline = pipeline
+        self.pipeline = pipeline ?? TranscriptionPipeline()
 
         let support = appSupportDirectory
             ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
@@ -555,9 +555,9 @@ final class TranscriptionViewModel: ObservableObject {
         return max(12, seconds * 0.65)
     }
 
-    private func mergeAnalysisProgress(_ progress: TranscriptionProgress) {
+    private func mergeAnalysisProgress(fractionCompleted: Double) {
         guard isAnalyzing else { return }
-        let clamped = max(0.02, min(0.98, progress.fractionCompleted))
+        let clamped = max(0.02, min(0.98, fractionCompleted))
         analysisProgress = max(analysisProgress, clamped)
     }
 
@@ -602,13 +602,8 @@ final class TranscriptionViewModel: ObservableObject {
                     sourceURL: sourceURL,
                     locale: locale,
                     contextualStrings: contextualStrings,
-                    progressMapper: { [total = candidates.count] progress in
-                        let scaled = (Double(index) + progress.fractionCompleted) / Double(total)
-                        return TranscriptionProgress(
-                            fractionCompleted: scaled,
-                            recognizedDuration: progress.recognizedDuration,
-                            totalDuration: progress.totalDuration
-                        )
+                    progressFractionMapper: { [total = candidates.count] fraction in
+                        (Double(index) + fraction) / Double(total)
                     }
                 )
 
@@ -654,16 +649,16 @@ final class TranscriptionViewModel: ObservableObject {
         sourceURL: URL,
         locale: Locale?,
         contextualStrings: [String],
-        progressMapper: @escaping @Sendable (TranscriptionProgress) -> TranscriptionProgress = { $0 }
+        progressFractionMapper: @escaping @Sendable (Double) -> Double = { $0 }
     ) async throws -> TranscriptionOutput {
         let request = TranscriptionRequest(
             sourceURL: sourceURL,
             locale: locale,
             contextualStrings: contextualStrings,
             progressHandler: { [weak self] progress in
-                let mapped = progressMapper(progress)
+                let mappedFraction = progressFractionMapper(progress.fractionCompleted)
                 Task { @MainActor [weak self] in
-                    self?.mergeAnalysisProgress(mapped)
+                    self?.mergeAnalysisProgress(fractionCompleted: mappedFraction)
                 }
             }
         )

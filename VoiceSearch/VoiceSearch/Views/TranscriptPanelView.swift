@@ -47,7 +47,7 @@ struct TranscriptPanelView: View {
                     .textFieldStyle(.plain)
                     .focused($isSearchFieldFocused)
                     .onSubmit { viewModel.performSearch() }
-                    .onChange(of: viewModel.query) { _ in
+                    .onChange(of: viewModel.query) { _, _ in
                         viewModel.performSearch()
                     }
                 if !viewModel.query.isEmpty {
@@ -67,7 +67,7 @@ struct TranscriptPanelView: View {
             Toggle(AppL10n.text("search.partialMatch"), isOn: $viewModel.isContainsMatchMode)
                 .toggleStyle(.switch)
                 .controlSize(.small)
-                .onChange(of: viewModel.isContainsMatchMode) { _ in
+                .onChange(of: viewModel.isContainsMatchMode) { _, _ in
                     viewModel.performSearch()
                 }
         }
@@ -173,7 +173,7 @@ struct TranscriptPanelView: View {
                 .id(word.id)
                 .buttonStyle(.plain)
             }
-            .onChange(of: viewModel.displayHighlightedIndex) { newIndex in
+            .onChange(of: viewModel.displayHighlightedIndex) { _, newIndex in
                 guard !isSearchFieldFocused else { return }
                 guard let newIndex,
                       viewModel.displayTranscript.indices.contains(newIndex) else { return }
@@ -206,7 +206,7 @@ struct TranscriptPanelView: View {
             .onSubmit {
                 viewModel.updateTxtPauseLineBreakThreshold(viewModel.txtPauseLineBreakThreshold)
             }
-            .onChange(of: viewModel.txtPauseLineBreakThreshold) { newValue in
+            .onChange(of: viewModel.txtPauseLineBreakThreshold) { _, newValue in
                 viewModel.updateTxtPauseLineBreakThreshold(newValue)
             }
             Text(AppL10n.text("time.seconds"))
@@ -248,9 +248,9 @@ struct TranscriptPanelView: View {
         let prefix = String(context[..<range.lowerBound])
         let matched = String(context[range])
         let suffix = String(context[range.upperBound...])
-        return Text(prefix)
-            + Text(matched).foregroundColor(.red).fontWeight(.semibold)
-            + Text(suffix)
+        return Text(
+            "\(Text(prefix))\(Text(matched).foregroundColor(.red).fontWeight(.semibold))\(Text(suffix))"
+        )
     }
 
     private static var thresholdFormatter: NumberFormatter {

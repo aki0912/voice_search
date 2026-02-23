@@ -149,27 +149,10 @@ struct AudioInputPreparer {
             .appendingPathExtension("m4a")
         try? FileManager.default.removeItem(at: destinationURL)
 
-        exporter.outputURL = destinationURL
-        exporter.outputFileType = .m4a
-        let exportBox = ExportSessionBox(exporter: exporter)
-
-        try await withCheckedThrowingContinuation { continuation in
-            exportBox.exporter.exportAsynchronously {
-                switch exportBox.exporter.status {
-                case .completed:
-                    continuation.resume()
-                case .failed:
-                    continuation.resume(
-                        throwing: AudioInputPreparationError.invalidInput(
-                            exportBox.exporter.error?.localizedDescription ?? "Audio extraction failed."
-                        )
-                    )
-                case .cancelled:
-                    continuation.resume(throwing: AudioInputPreparationError.invalidInput("Audio extraction cancelled."))
-                default:
-                    continuation.resume(throwing: AudioInputPreparationError.invalidInput("Audio extraction did not complete."))
-                }
-            }
+        do {
+            try await exporter.export(to: destinationURL, as: .m4a)
+        } catch {
+            throw AudioInputPreparationError.invalidInput(error.localizedDescription)
         }
 
         let extractedAsset = AVURLAsset(url: destinationURL)
@@ -180,13 +163,5 @@ struct AudioInputPreparer {
         }
 
         return destinationURL
-    }
-}
-
-private final class ExportSessionBox: @unchecked Sendable {
-    let exporter: AVAssetExportSession
-
-    init(exporter: AVAssetExportSession) {
-        self.exporter = exporter
     }
 }

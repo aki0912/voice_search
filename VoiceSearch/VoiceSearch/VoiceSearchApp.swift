@@ -20,7 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func activateAndFocusWindow() {
         NSApplication.shared.setActivationPolicy(.regular)
-        _ = NSRunningApplication.current.activate(options: [.activateIgnoringOtherApps])
+        _ = NSRunningApplication.current.activate(options: [])
 
         if let window = NSApplication.shared.windows.first(where: { $0.isVisible }) ?? NSApplication.shared.windows.first {
             window.makeKeyAndOrderFront(nil)
