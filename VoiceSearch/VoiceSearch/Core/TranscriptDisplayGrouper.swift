@@ -44,19 +44,24 @@ public struct TranscriptDisplayGrouper: Sendable {
     private func shouldMerge(current: [TranscriptWord], next: TranscriptWord) -> Bool {
         guard let first = current.first, let last = current.last else { return false }
 
-        let gap = max(0, next.startTime - last.endTime)
-        if gap > maxGap {
-            return false
-        }
-
         let previousText = last.text.trimmingCharacters(in: .whitespacesAndNewlines)
         let nextText = next.text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !previousText.isEmpty, !nextText.isEmpty else { return false }
+
+        let gap = max(0, next.startTime - last.endTime)
+        let numericContinuation = isNumericContinuation(previousText: previousText, nextText: nextText)
+        let allowedGap = numericContinuation ? max(maxGap, numericContinuationMaxGap) : maxGap
+        if gap > allowedGap {
+            return false
+        }
 
         if isPunctuationToken(nextText) {
             return true
         }
         if isAttachable(nextText) {
+            return true
+        }
+        if numericContinuation {
             return true
         }
         if isContinuation(previousText: previousText, nextText: nextText) {
@@ -140,6 +145,22 @@ public struct TranscriptDisplayGrouper: Sendable {
         return false
     }
 
+    private func isNumericContinuation(previousText: String, nextText: String) -> Bool {
+        if isNumberLikeToken(previousText), isNumberLikeToken(nextText) {
+            return true
+        }
+
+        if isNumberLikeToken(previousText), startsWithNumericJoinToken(nextText) {
+            return true
+        }
+
+        if endsWithNumericJoinToken(previousText), isNumberLikeToken(nextText) {
+            return true
+        }
+
+        return false
+    }
+
     private func isJapaneseToken(_ text: String) -> Bool {
         text.unicodeScalars.contains(where: isJapaneseScalar)
     }
@@ -166,6 +187,24 @@ public struct TranscriptDisplayGrouper: Sendable {
         return scalars.allSatisfy { punctuationCharacters.contains($0) }
     }
 
+    private func isNumberLikeToken(_ text: String) -> Bool {
+        let scalars = text.unicodeScalars
+        guard !scalars.isEmpty else { return false }
+        return scalars.allSatisfy { scalar in
+            CharacterSet.decimalDigits.contains(scalar)
+                || numericTokenPunctuation.contains(scalar)
+                || japaneseNumberScalars.contains(scalar)
+        }
+    }
+
+    private func startsWithNumericJoinToken(_ text: String) -> Bool {
+        numericJoinPrefixes.contains(where: { text.hasPrefix($0) })
+    }
+
+    private func endsWithNumericJoinToken(_ text: String) -> Bool {
+        numericJoinPrefixes.contains(where: { text.hasSuffix($0) })
+    }
+
     private func isJapaneseScalar(_ scalar: UnicodeScalar) -> Bool {
         isHiraganaScalar(scalar) || isKatakanaScalar(scalar) || isCJKScalar(scalar)
     }
@@ -184,6 +223,27 @@ public struct TranscriptDisplayGrouper: Sendable {
 
     private var punctuationCharacters: CharacterSet {
         CharacterSet(charactersIn: "、。.,!?！？…・:;：；")
+    }
+
+    private var numericTokenPunctuation: CharacterSet {
+        CharacterSet(charactersIn: ".,，．:/：-−ー~〜＋+")
+    }
+
+    private var japaneseNumberScalars: Set<UnicodeScalar> {
+        Set("〇零一二三四五六七八九十百千万億兆".unicodeScalars)
+    }
+
+    private var numericJoinPrefixes: [String] {
+        [
+            "年", "月", "日", "時", "分", "秒",
+            "回", "人", "名", "個", "本", "枚", "台", "件", "番",
+            "歳", "才", "条", "点", "円", "%", "％", "パーセント",
+            "午前", "午後", "am", "pm", "AM", "PM"
+        ]
+    }
+
+    private var numericContinuationMaxGap: TimeInterval {
+        1.0
     }
 
     private var functionWords: Set<String> {

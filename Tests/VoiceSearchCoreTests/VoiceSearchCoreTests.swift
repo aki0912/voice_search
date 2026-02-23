@@ -179,6 +179,44 @@ struct TranscriptDisplayGrouperTests {
         #expect(grouped.count == 1)
         #expect(grouped[0].text == "こんにちは。")
     }
+
+    @Test
+    func mergesDateAndTimeTokensToAvoidStandaloneNumberRows() {
+        let words = [
+            TranscriptWord(text: "今日は", startTime: 0.0, endTime: 0.3),
+            TranscriptWord(text: "2", startTime: 0.8, endTime: 0.9),
+            TranscriptWord(text: "月", startTime: 1.3, endTime: 1.4),
+            TranscriptWord(text: "23", startTime: 1.52, endTime: 1.62),
+            TranscriptWord(text: "日です", startTime: 1.68, endTime: 2.0),
+            TranscriptWord(text: "2", startTime: 2.45, endTime: 2.55),
+            TranscriptWord(text: "時", startTime: 2.9, endTime: 3.0),
+            TranscriptWord(text: "30", startTime: 3.05, endTime: 3.15),
+            TranscriptWord(text: "分です", startTime: 3.2, endTime: 3.5)
+        ]
+
+        let grouper = TranscriptDisplayGrouper()
+        let grouped = grouper.group(words: words)
+
+        #expect(grouped.count == 3)
+        #expect(grouped[0].text == "今日は")
+        #expect(grouped[1].text == "2月23日です")
+        #expect(grouped[2].text == "2時30分です")
+    }
+
+    @Test
+    func keepsNumberAndCounterSeparatedWhenPauseIsTooLarge() {
+        let words = [
+            TranscriptWord(text: "2", startTime: 0.0, endTime: 0.1),
+            TranscriptWord(text: "月", startTime: 1.5, endTime: 1.6)
+        ]
+
+        let grouper = TranscriptDisplayGrouper()
+        let grouped = grouper.group(words: words)
+
+        #expect(grouped.count == 2)
+        #expect(grouped[0].text == "2")
+        #expect(grouped[1].text == "月")
+    }
 }
 
 @Suite
