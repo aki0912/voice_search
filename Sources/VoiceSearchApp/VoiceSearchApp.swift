@@ -10,6 +10,14 @@ private func requestSpeechRecognitionAuthorizationPrompt() {
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    private func applyCustomAppIconIfAvailable() {
+        guard let iconURL = Bundle.module.url(forResource: "AppIcon", withExtension: "png"),
+              let iconImage = NSImage(contentsOf: iconURL) else {
+            return
+        }
+        NSApplication.shared.applicationIconImage = iconImage
+    }
+
     private func activateAndFocusWindow() {
         NSApplication.shared.setActivationPolicy(.regular)
         _ = NSRunningApplication.current.activate(options: [.activateIgnoringOtherApps])
@@ -20,6 +28,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        applyCustomAppIconIfAvailable()
         activateAndFocusWindow()
         requestSpeechRecognitionAuthorizationIfNeeded()
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
