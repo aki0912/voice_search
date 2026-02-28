@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 struct TranscriptPanelView: View {
     @ObservedObject var viewModel: TranscriptionViewModel
@@ -47,7 +48,7 @@ struct TranscriptPanelView: View {
                     .textFieldStyle(.plain)
                     .focused($isSearchFieldFocused)
                     .onSubmit { viewModel.performSearch() }
-                    .onChange(of: viewModel.query) { _ in
+                    .onChangeCompat(of: viewModel.query) { _ in
                         viewModel.performSearch()
                     }
                 if !viewModel.query.isEmpty {
@@ -67,7 +68,7 @@ struct TranscriptPanelView: View {
             Toggle(AppL10n.text("search.partialMatch"), isOn: $viewModel.isContainsMatchMode)
                 .toggleStyle(.switch)
                 .controlSize(.small)
-                .onChange(of: viewModel.isContainsMatchMode) { _ in
+                .onChangeCompat(of: viewModel.isContainsMatchMode) { _ in
                     viewModel.performSearch()
                 }
         }
@@ -175,7 +176,7 @@ struct TranscriptPanelView: View {
                 .id(word.id)
                 .buttonStyle(.plain)
             }
-            .onChange(of: viewModel.displayHighlightedIndex) { newIndex in
+            .onChangeCompat(of: viewModel.displayHighlightedIndex) { newIndex in
                 guard !isSearchFieldFocused else { return }
                 guard let newIndex,
                       viewModel.displayTranscript.indices.contains(newIndex) else { return }
@@ -208,7 +209,7 @@ struct TranscriptPanelView: View {
             .onSubmit {
                 viewModel.updateTxtPauseLineBreakThreshold(viewModel.txtPauseLineBreakThreshold)
             }
-            .onChange(of: viewModel.txtPauseLineBreakThreshold) { newValue in
+            .onChangeCompat(of: viewModel.txtPauseLineBreakThreshold) { newValue in
                 viewModel.updateTxtPauseLineBreakThreshold(newValue)
             }
             Text(AppL10n.text("time.seconds"))
@@ -261,5 +262,37 @@ struct TranscriptPanelView: View {
         formatter.minimumFractionDigits = 0
         formatter.maximumFractionDigits = 2
         return formatter
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func onChangeCompat<Value: Equatable>(
+        of value: Value,
+        perform action: @escaping (Value) -> Void
+    ) -> some View {
+        if #available(macOS 14.0, *) {
+            self.onChange(of: value) { _, newValue in
+                action(newValue)
+            }
+        } else {
+            self.modifier(LegacyOnChangeModifier(value: value, action: action))
+        }
+    }
+}
+
+private struct LegacyOnChangeModifier<Value: Equatable>: ViewModifier {
+    let value: Value
+    let action: (Value) -> Void
+
+    @State private var previousValue: Value?
+
+    func body(content: Content) -> some View {
+        content.onReceive(Just(value)) { newValue in
+            if let previousValue, previousValue != newValue {
+                action(newValue)
+            }
+            previousValue = newValue
+        }
     }
 }
