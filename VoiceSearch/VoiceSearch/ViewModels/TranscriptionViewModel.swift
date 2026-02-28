@@ -738,55 +738,19 @@ final class TranscriptionViewModel: ObservableObject {
     }
 
     private func transcriptionContextualStrings() -> [String] {
-        var seen = Set<String>()
-        var output: [String] = []
-
-        for entry in dictionaryEntries {
-            let candidates = [entry.canonical] + entry.aliases
-            for raw in candidates {
-                let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-                if text.isEmpty { continue }
-
-                let key = normalizer.normalize(text)
-                if key.isEmpty || seen.contains(key) { continue }
-                seen.insert(key)
-                output.append(text)
-                if output.count >= 100 { return output }
-            }
-        }
-
-        return output
+        UserDictionaryProcessor.contextualStrings(
+            from: dictionaryEntries,
+            normalizer: normalizer,
+            limit: 100
+        )
     }
 
     private func applyDictionaryDisplayNormalization() {
-        guard !rawTranscript.isEmpty else {
-            transcript = []
-            displayTranscript = []
-            return
-        }
-
-        var displayMap: [String: String] = [:]
-        for entry in dictionaryEntries {
-            let canonical = entry.canonical.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !canonical.isEmpty else { continue }
-
-            let canonicalKey = normalizer.normalize(canonical)
-            if !canonicalKey.isEmpty {
-                displayMap[canonicalKey] = canonical
-            }
-
-            for alias in entry.aliases {
-                let aliasKey = normalizer.normalize(alias)
-                if aliasKey.isEmpty { continue }
-                displayMap[aliasKey] = canonical
-            }
-        }
-
-        transcript = rawTranscript.map { word in
-            let key = normalizer.normalize(word.text)
-            guard !key.isEmpty, let replacement = displayMap[key] else { return word }
-            return TranscriptWord(id: word.id, text: replacement, startTime: word.startTime, endTime: word.endTime)
-        }
+        transcript = UserDictionaryProcessor.applyDisplayNormalization(
+            rawTranscript: rawTranscript,
+            entries: dictionaryEntries,
+            normalizer: normalizer
+        )
         displayTranscript = displayGrouper.group(words: transcript)
     }
 
@@ -824,79 +788,16 @@ final class TranscriptionViewModel: ObservableObject {
     }
 
     private func transcriptTextContentTXT() -> String {
-        let plain = TranscriptPlainTextFormatter(
-            pauseLineBreakThreshold: min(max(0, txtPauseLineBreakThreshold), 2.0)
-        ).format(words: transcript)
-        let timed = transcript.map { word in
-            "[\(formatTimeForExport(word.startTime)) - \(formatTimeForExport(word.endTime))] \(word.text)"
-        }.joined(separator: "\n")
-
-        return """
-        \(AppL10n.text("export.txt.header.transcript"))
-        \(plain)
-
-        \(AppL10n.text("export.txt.header.timedWords"))
-        \(timed)
-        """
+        TranscriptExportContentBuilder.txtContent(
+            words: transcript,
+            pauseLineBreakThreshold: txtPauseLineBreakThreshold,
+            transcriptHeader: AppL10n.text("export.txt.header.transcript"),
+            timedWordsHeader: AppL10n.text("export.txt.header.timedWords")
+        )
     }
 
     private func transcriptTextContentSRT() -> String {
-        struct Cue {
-            let start: TimeInterval
-            let end: TimeInterval
-            let text: String
-        }
-
-        var cues: [Cue] = []
-        var index = 0
-
-        while index < transcript.count {
-            let startWord = transcript[index]
-            var endIndex = index
-
-            while endIndex + 1 < transcript.count {
-                let nextIndex = endIndex + 1
-                let duration = transcript[nextIndex].endTime - startWord.startTime
-                let wordCount = nextIndex - index + 1
-                if duration > 2.5 || wordCount > 8 { break }
-                endIndex = nextIndex
-            }
-
-            let text = transcript[index...endIndex].map(\.text).joined(separator: " ")
-            cues.append(
-                Cue(
-                    start: startWord.startTime,
-                    end: transcript[endIndex].endTime,
-                    text: text
-                )
-            )
-            index = endIndex + 1
-        }
-
-        return cues.enumerated().map { offset, cue in
-            """
-            \(offset + 1)
-            \(formatTimeForSRT(cue.start)) --> \(formatTimeForSRT(cue.end))
-            \(cue.text)
-            """
-        }.joined(separator: "\n\n")
-    }
-
-    private func formatTimeForExport(_ value: TimeInterval) -> String {
-        guard value.isFinite, value >= 0 else { return "00:00.000" }
-        let minutes = Int(value / 60)
-        let seconds = Int(value) % 60
-        let millis = Int((value - floor(value)) * 1000)
-        return String(format: "%02d:%02d.%03d", minutes, seconds, millis)
-    }
-
-    private func formatTimeForSRT(_ value: TimeInterval) -> String {
-        guard value.isFinite, value >= 0 else { return "00:00:00,000" }
-        let hours = Int(value / 3600)
-        let minutes = Int(value.truncatingRemainder(dividingBy: 3600) / 60)
-        let seconds = Int(value) % 60
-        let millis = Int((value - floor(value)) * 1000)
-        return String(format: "%02d:%02d:%02d,%03d", hours, minutes, seconds, millis)
+        TranscriptExportContentBuilder.srtContent(words: transcript)
     }
 
     private func isVideoFile(_ url: URL) -> Bool {
