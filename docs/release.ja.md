@@ -23,14 +23,22 @@ xcrun notarytool store-credentials "AC_PROFILE" \
 
 - `"AC_PROFILE"` は任意の名前で良い（例: `my-notary`）。
 
-## 2. Xcode で Archive / Distribute
+## 2. Xcode で Marketing Version を更新
+
+1. Xcode で `VoiceSearch.xcodeproj` を開く
+2. `TARGETS > VoiceSearch` を選択
+3. `General` タブの `Identity` にある `Version`（Marketing Version）を更新（例: `1.0.1`）
+4. 必要なら `Build`（Build Number, `CFBundleVersion`）も更新
+5. `Product > Clean Build Folder` を実行してから次へ進む
+
+## 3. Xcode で Archive / Distribute
 
 1. `Product > Archive`
 2. Organizer で `Distribute App`
 3. `Developer ID` を選択して書き出し
 4. 出力された `VoiceSearch.app` の場所を控える
 
-## 3. DMG を作成
+## 4. DMG を作成
 
 ```bash
 cd /Users/akihiro/Documents/Sources/voice_search
@@ -47,7 +55,7 @@ hdiutil create \
   "/Users/akihiro/Desktop/VoiceSearch-v1.0.0.dmg"
 ```
 
-## 4. DMG を公証（Notarization）して貼り付け（Staple）
+## 5. DMG を公証（Notarization）して貼り付け（Staple）
 
 ```bash
 xcrun notarytool submit "/Users/akihiro/Desktop/VoiceSearch-v1.0.0.dmg" \
@@ -58,7 +66,7 @@ xcrun stapler staple "/Users/akihiro/Desktop/VoiceSearch-v1.0.0.dmg"
 xcrun stapler validate "/Users/akihiro/Desktop/VoiceSearch-v1.0.0.dmg"
 ```
 
-## 5. GitHub Release を作成して配布
+## 6. GitHub Release を作成して配布
 
 1. タグ作成:
 
@@ -79,7 +87,7 @@ CLI で添付する場合:
 gh release upload v1.0.0 "/Users/akihiro/Desktop/VoiceSearch-v1.0.0.dmg" --clobber
 ```
 
-## 6. 最終確認
+## 7. 最終確認
 
 - 別環境で DMG ダウンロード
 - アプリ起動確認
@@ -91,4 +99,3 @@ gh release upload v1.0.0 "/Users/akihiro/Desktop/VoiceSearch-v1.0.0.dmg" --clobb
   - `*.app` や `.icon`（フォルダ）は添付不可。**`.dmg` ファイルのみ**添付する。
   - Finder ではなくドラッグ&ドロップ添付を試す。
   - 0バイトや未完成ファイルでないか `ls -lh` で確認する。
-
