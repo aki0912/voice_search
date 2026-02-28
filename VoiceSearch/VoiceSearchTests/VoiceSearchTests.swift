@@ -6,7 +6,14 @@
 //
 
 import Testing
+
+#if canImport(VoiceSearchApp)
+@testable import VoiceSearchApp
+#elseif canImport(VoiceSearch)
 @testable import VoiceSearch
+#else
+#error("Neither VoiceSearchApp nor VoiceSearch module is available")
+#endif
 
 struct VoiceSearchTests {
 

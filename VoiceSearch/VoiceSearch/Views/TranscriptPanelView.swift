@@ -47,7 +47,7 @@ struct TranscriptPanelView: View {
                     .textFieldStyle(.plain)
                     .focused($isSearchFieldFocused)
                     .onSubmit { viewModel.performSearch() }
-                    .onChange(of: viewModel.query) { _, _ in
+                    .onChange(of: viewModel.query) { _ in
                         viewModel.performSearch()
                     }
                 if !viewModel.query.isEmpty {
@@ -67,7 +67,7 @@ struct TranscriptPanelView: View {
             Toggle(AppL10n.text("search.partialMatch"), isOn: $viewModel.isContainsMatchMode)
                 .toggleStyle(.switch)
                 .controlSize(.small)
-                .onChange(of: viewModel.isContainsMatchMode) { _, _ in
+                .onChange(of: viewModel.isContainsMatchMode) { _ in
                     viewModel.performSearch()
                 }
         }
@@ -175,7 +175,7 @@ struct TranscriptPanelView: View {
                 .id(word.id)
                 .buttonStyle(.plain)
             }
-            .onChange(of: viewModel.displayHighlightedIndex) { _, newIndex in
+            .onChange(of: viewModel.displayHighlightedIndex) { newIndex in
                 guard !isSearchFieldFocused else { return }
                 guard let newIndex,
                       viewModel.displayTranscript.indices.contains(newIndex) else { return }
@@ -208,7 +208,7 @@ struct TranscriptPanelView: View {
             .onSubmit {
                 viewModel.updateTxtPauseLineBreakThreshold(viewModel.txtPauseLineBreakThreshold)
             }
-            .onChange(of: viewModel.txtPauseLineBreakThreshold) { _, newValue in
+            .onChange(of: viewModel.txtPauseLineBreakThreshold) { newValue in
                 viewModel.updateTxtPauseLineBreakThreshold(newValue)
             }
             Text(AppL10n.text("time.seconds"))
