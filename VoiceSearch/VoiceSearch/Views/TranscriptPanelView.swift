@@ -48,7 +48,7 @@ struct TranscriptPanelView: View {
                     .focused($isSearchFieldFocused)
                     .onSubmit { viewModel.performSearch() }
                     .onChangeCompat(of: viewModel.query) { _ in
-                        viewModel.performSearch()
+                        viewModel.scheduleSearchDebounced()
                     }
                 if !viewModel.query.isEmpty {
                     Button(action: { viewModel.query = "" }) {

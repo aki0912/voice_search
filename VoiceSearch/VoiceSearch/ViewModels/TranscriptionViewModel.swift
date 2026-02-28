@@ -102,6 +102,7 @@ final class TranscriptionViewModel: ObservableObject {
     private var timeObserverToken: Any?
     private var timeObserverPlayer: AVPlayer?
     private var analysisProgressTask: Task<Void, Never>?
+    private var searchDebounceTask: Task<Void, Never>?
     private var isScrubbingPlayback = false
     private var scrubWasPlayingBeforeDrag = false
     private let fileDictionaryURL: URL
@@ -327,6 +328,9 @@ final class TranscriptionViewModel: ObservableObject {
     }
 
     func performSearch() {
+        searchDebounceTask?.cancel()
+        searchDebounceTask = nil
+
         guard !query.isEmpty else {
             searchHits = []
             return
@@ -336,6 +340,26 @@ final class TranscriptionViewModel: ObservableObject {
         var opts = options
         opts.mode = isContainsMatchMode ? .contains : .exact
         searchHits = service.search(words: transcript, query: query, options: opts)
+    }
+
+    func scheduleSearchDebounced() {
+        searchDebounceTask?.cancel()
+
+        guard !query.isEmpty else {
+            performSearch()
+            return
+        }
+
+        searchDebounceTask = Task { @MainActor [weak self] in
+            do {
+                try await Task.sleep(nanoseconds: 250_000_000)
+            } catch {
+                return
+            }
+
+            guard let self, !Task.isCancelled else { return }
+            self.performSearch()
+        }
     }
 
     func jump(to hit: SearchHit) {
