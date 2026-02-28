@@ -152,6 +152,8 @@ public struct TranscriptSearchService: Sendable {
     }
 
     private func searchSingle(words: [TranscriptWord], queryToken: String, options: SearchOptions) -> [SearchHit] {
+        guard options.maxResults > 0 else { return [] }
+
         var hits: [SearchHit] = []
         let queryForms = dictionary.forms(for: queryToken, normalizer: normalizer)
 
@@ -169,13 +171,17 @@ public struct TranscriptSearchService: Sendable {
                         displayText: word.text
                     )
                 )
+                if hits.count >= options.maxResults {
+                    break
+                }
             }
         }
 
-        return hits.prefix(options.maxResults).map { $0 }
+        return hits
     }
 
     private func searchPhrase(words: [TranscriptWord], queryTokens: [String], options: SearchOptions) -> [SearchHit] {
+        guard options.maxResults > 0 else { return [] }
         guard words.count >= queryTokens.count else { return [] }
 
         let queryForms = queryTokens.map { dictionary.forms(for: $0, normalizer: normalizer) }
@@ -208,10 +214,13 @@ public struct TranscriptSearchService: Sendable {
                         displayText: displayText
                     )
                 )
+                if hits.count >= options.maxResults {
+                    break
+                }
             }
         }
 
-        return hits.prefix(options.maxResults).map { $0 }
+        return hits
     }
 
     private func matches(tokenForms: Set<String>, queryForms: Set<String>, mode: SearchOptions.MatchMode) -> Bool {

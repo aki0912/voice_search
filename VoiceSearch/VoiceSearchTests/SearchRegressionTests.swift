@@ -79,4 +79,45 @@ struct SearchRegressionTests {
         #expect(hits.count == 1)
         #expect(hits[0].displayText == "アップル")
     }
+
+    @Test
+    func maxResultsLimitsSingleTokenMatches() {
+        let words = [
+            TranscriptWord(text: "swift", startTime: 0.0, endTime: 0.2),
+            TranscriptWord(text: "swift", startTime: 0.3, endTime: 0.5),
+            TranscriptWord(text: "swift", startTime: 0.6, endTime: 0.8),
+        ]
+        let service = TranscriptSearchService()
+
+        let hits = service.search(
+            words: words,
+            query: "swift",
+            options: SearchOptions(maxResults: 2, mode: .exact)
+        )
+
+        #expect(hits.count == 2)
+        #expect(hits[0].startIndex == 0)
+        #expect(hits[1].startIndex == 1)
+    }
+
+    @Test
+    func maxResultsLimitsPhraseMatches() {
+        let words = [
+            TranscriptWord(text: "swift", startTime: 0.0, endTime: 0.2),
+            TranscriptWord(text: "world", startTime: 0.3, endTime: 0.5),
+            TranscriptWord(text: "swift", startTime: 0.6, endTime: 0.8),
+            TranscriptWord(text: "world", startTime: 0.9, endTime: 1.1),
+        ]
+        let service = TranscriptSearchService()
+
+        let hits = service.search(
+            words: words,
+            query: "swift world",
+            options: SearchOptions(maxResults: 1, mode: .exact)
+        )
+
+        #expect(hits.count == 1)
+        #expect(hits[0].startIndex == 0)
+        #expect(hits[0].endIndex == 1)
+    }
 }
