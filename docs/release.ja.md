@@ -9,25 +9,41 @@
 - `Developer ID Application` で署名できる状態
 - macOS に `xcrun` / `hdiutil` / `gh`（任意）が入っている
 
+## 0. 先に共通変数を設定（この1箇所だけ更新）
+
+```bash
+export APP_NAME="VoiceSearch"
+export VERSION="1.0.1"
+export TAG="v${VERSION}"
+export REPO_ROOT="~/Documents/Sources/voice_search"
+export EXPORT_APP_PATH="/path/to/${APP_NAME}.app"
+export DIST_DIR="${REPO_ROOT}/dist"
+export DMG_PATH="~/Desktop/${APP_NAME}-${TAG}.dmg"
+export AC_PROFILE="AC_PROFILE"
+```
+
+- 次の手順はすべて上記変数を利用する。
+- 次回リリース時は `VERSION` だけ変更すれば、タグ名・DMG名・アップロード先の指定を使い回せる。
+
 ## 1. （初回のみ）notarytool プロファイルを作成
 
 1. Apple ID でアプリ専用パスワードを作成（[appleid.apple.com](https://appleid.apple.com)）。
 2. キーチェーンへ保存:
 
 ```bash
-xcrun notarytool store-credentials "AC_PROFILE" \
+xcrun notarytool store-credentials "$AC_PROFILE" \
   --apple-id "you@example.com" \
   --team-id "YOUR_TEAM_ID" \
   --password "APP_SPECIFIC_PASSWORD"
 ```
 
-- `"AC_PROFILE"` は任意の名前で良い（例: `my-notary`）。
+- `AC_PROFILE` は任意の名前で良い（例: `my-notary`）。
 
 ## 2. Xcode で Marketing Version を更新
 
 1. Xcode で `VoiceSearch.xcodeproj` を開く
 2. `TARGETS > VoiceSearch` を選択
-3. `General` タブの `Identity` にある `Version`（Marketing Version）を更新（例: `1.0.1`）
+3. `General` タブの `Identity` にある `Version`（Marketing Version）を `VERSION` と同じ値に更新（例: `1.0.1`）
 4. 必要なら `Build`（Build Number, `CFBundleVersion`）も更新
 5. `Product > Clean Build Folder` を実行してから次へ進む
 
@@ -41,29 +57,29 @@ xcrun notarytool store-credentials "AC_PROFILE" \
 ## 4. DMG を作成
 
 ```bash
-cd /Users/akihiro/Documents/Sources/voice_search
-rm -rf dist
-mkdir -p dist
-cp -R "/path/to/VoiceSearch.app" dist/
-ln -s /Applications dist/Applications
+cd "$REPO_ROOT"
+rm -rf "$DIST_DIR"
+mkdir -p "$DIST_DIR"
+cp -R "$EXPORT_APP_PATH" "$DIST_DIR/"
+ln -s /Applications "$DIST_DIR/Applications"
 
 hdiutil create \
-  -volname "VoiceSearch" \
-  -srcfolder dist \
+  -volname "$APP_NAME" \
+  -srcfolder "$DIST_DIR" \
   -ov \
   -format UDZO \
-  "/Users/akihiro/Desktop/VoiceSearch-v1.0.0.dmg"
+  "$DMG_PATH"
 ```
 
 ## 5. DMG を公証（Notarization）して貼り付け（Staple）
 
 ```bash
-xcrun notarytool submit "/Users/akihiro/Desktop/VoiceSearch-v1.0.0.dmg" \
-  --keychain-profile "AC_PROFILE" \
+xcrun notarytool submit "$DMG_PATH" \
+  --keychain-profile "$AC_PROFILE" \
   --wait
 
-xcrun stapler staple "/Users/akihiro/Desktop/VoiceSearch-v1.0.0.dmg"
-xcrun stapler validate "/Users/akihiro/Desktop/VoiceSearch-v1.0.0.dmg"
+xcrun stapler staple "$DMG_PATH"
+xcrun stapler validate "$DMG_PATH"
 ```
 
 ## 6. GitHub Release を作成して配布
@@ -71,20 +87,20 @@ xcrun stapler validate "/Users/akihiro/Desktop/VoiceSearch-v1.0.0.dmg"
 1. タグ作成:
 
 ```bash
-cd /Users/akihiro/Documents/Sources/voice_search
-git tag v1.0.0
-git push origin v1.0.0
+cd "$REPO_ROOT"
+git tag "$TAG"
+git push origin "$TAG"
 ```
 
 2. GitHub で `Releases > Draft a new release`
-3. タグ `v1.0.0` を選択
+3. タグ `$TAG`（例: `v1.0.1`）を選択
 4. リリースノートを記入
-5. `VoiceSearch-v1.0.0.dmg` を添付して Publish
+5. `DMG_PATH` のファイル（例: `VoiceSearch-v1.0.1.dmg`）を添付して Publish
 
 CLI で添付する場合:
 
 ```bash
-gh release upload v1.0.0 "/Users/akihiro/Desktop/VoiceSearch-v1.0.0.dmg" --clobber
+gh release upload "$TAG" "$DMG_PATH" --clobber
 ```
 
 ## 7. 最終確認
