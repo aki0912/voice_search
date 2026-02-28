@@ -95,6 +95,7 @@ final class TranscriptionViewModel: ObservableObject {
     private let options = SearchOptions()
     private let failureMessageFormatter = TranscriptionFailureMessageFormatter()
     private let failureLogWriter: any TranscriptionFailureLogWriting
+    private let transcriptionServiceFactory: (RecognitionMode) -> any TranscriptionService
 
     private var rawTranscript: [TranscriptWord] = []
     private var player: AVPlayer?
@@ -123,9 +124,14 @@ final class TranscriptionViewModel: ObservableObject {
     init(
         pipeline: TranscriptionPipeline? = nil,
         appSupportDirectory: URL? = nil,
-        failureLogWriter: (any TranscriptionFailureLogWriting)? = nil
+        failureLogWriter: (any TranscriptionFailureLogWriting)? = nil,
+        transcriptionServiceFactory: ((RecognitionMode) -> any TranscriptionService)? = nil
     ) {
         self.pipeline = pipeline ?? TranscriptionPipeline()
+        self.transcriptionServiceFactory = transcriptionServiceFactory
+            ?? { mode in
+                Self.defaultTranscriptionService(for: mode)
+            }
 
         let support = appSupportDirectory
             ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
@@ -671,7 +677,7 @@ final class TranscriptionViewModel: ObservableObject {
             }
         )
 
-        let service = buildTranscriptionService(for: recognitionMode)
+        let service = transcriptionServiceFactory(recognitionMode)
         return try await pipeline.run(request, service: service)
     }
 
@@ -1031,7 +1037,7 @@ final class TranscriptionViewModel: ObservableObject {
         return AppL10n.format("error.failureMessageWithLogPath", formattedMessage, failureLogURL.path)
     }
 
-    private func buildTranscriptionService(for mode: RecognitionMode) -> any TranscriptionService {
+    private static func defaultTranscriptionService(for mode: RecognitionMode) -> any TranscriptionService {
         switch mode {
         case .server:
             return SpeechURLTranscriptionService(recognitionStrategy: .serverOnly)
@@ -1045,3 +1051,21 @@ final class TranscriptionViewModel: ObservableObject {
         }
     }
 }
+
+#if DEBUG
+extension TranscriptionViewModel {
+    enum TestTranscriptExportFormat {
+        case txt
+        case srt
+    }
+
+    func transcriptTextContentForTesting(format: TestTranscriptExportFormat) -> String {
+        switch format {
+        case .txt:
+            return transcriptTextContentTXT()
+        case .srt:
+            return transcriptTextContentSRT()
+        }
+    }
+}
+#endif
